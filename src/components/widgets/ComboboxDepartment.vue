@@ -118,9 +118,7 @@ const isCurrentUserSupervisor = computed(
 const user = computed(() => store.getters.user)
 
 const departmentsToTakeAccount = computed(() => {
-  const deps = props.selectableDepartments
-    ? [...props.selectableDepartments]
-    : [...departments.value]
+  const deps = [...departments.value]
   return deps.sort((a, b) =>
     a.name.localeCompare(b.name, undefined, {
       numeric: true

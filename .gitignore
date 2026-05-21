@@ -54,3 +54,4 @@ tests/test-bundle.js
 # Custom
 TODO
 QA
+.env
