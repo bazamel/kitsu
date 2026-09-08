@@ -15,20 +15,25 @@ if (!replayPath) {
 }
 
 const LOGIN_URL = "http://localhost/login";
-// A route that requires auth. Hitting this is a better probe than /login:
-// we check whether the app bounces us *to* login, rather than trusting that
-// it bounces us off it.
 const AUTH_CHECK_URL = "http://localhost/";
 const COOKIE_FILE = path.join(os.homedir(), ".cache", "replay-cookies.json");
 const PERSIST_DAYS = 30;
 
+// --- Timing (all values in ms) ---
+const NETWORK_IDLE_TIME = 100; // quiet period that counts as "idle"
+const STEP_SETTLE_DELAY = 100; // pause after every step before screenshotting
+const NAVIGATE_SETTLE_DELAY = 100; // extra pause after a navigate step
+
+const STEP_TIMEOUT = 7000; // per-step timeout handed to the runner
+const LOGIN_POLL_INTERVAL = 500; // how often to re-check the login page
+const NETWORK_IDLE_TIMEOUT = 3000; // cap on waiting for that idle period
+const UPLOAD_LOCATOR_TIMEOUT = 10000; // waiting for the file input to appear
+const NOOP_STEP_TIMEOUT = 100; // placeholder step standing in for unsupported types
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const browser = await puppeteer.launch({ headless: false });
 const page = await browser.newPage();
-await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 4 });
-
-// ---------------------------------------------------------------------------
-// Cookie persistence
-// ---------------------------------------------------------------------------
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
@@ -41,7 +46,7 @@ async function saveCookies() {
 
   await fs.mkdir(path.dirname(COOKIE_FILE), { recursive: true });
   await fs.writeFile(COOKIE_FILE, JSON.stringify(cookies, null, 2), {
-    mode: 0o600, // session tokens — don't leave these world-readable
+    mode: 0o600,
   });
 
   console.log(`Saved ${cookies.length} cookie(s) to ${COOKIE_FILE}`);
@@ -52,7 +57,8 @@ async function restoreCookies() {
   try {
     saved = JSON.parse(await fs.readFile(COOKIE_FILE, "utf8"));
   } catch (e) {
-    if (e.code !== "ENOENT") console.warn(`Could not read cookie file: ${e.message}`);
+    if (e.code !== "ENOENT")
+      console.warn(`Could not read cookie file: ${e.message}`);
     return;
   }
 
@@ -65,18 +71,16 @@ async function restoreCookies() {
     return;
   }
 
-  const scheme = new URL(LOGIN_URL).protocol; // "http:"
+  const scheme = new URL(LOGIN_URL).protocol;
   const futureExpiry = now + 60 * 60 * 24 * PERSIST_DAYS;
 
-  // Set one at a time: a single cookie Chrome dislikes shouldn't take the
-  // whole restore down with it.
   let restored = 0;
   for (const cookie of live) {
     const { session, size, domain, expires, ...rest } = cookie;
 
     const scoped = domain.startsWith(".")
-      ? { ...rest, domain } // genuine domain cookie — keep the leading dot
-      : { ...rest, url: `${scheme}//${domain}` }; // host-only — scope by URL
+      ? { ...rest, domain }
+      : { ...rest, url: `${scheme}//${domain}` };
 
     try {
       await browser.setCookie({
@@ -92,22 +96,17 @@ async function restoreCookies() {
   console.log(`Restored ${restored}/${live.length} cookie(s).`);
 }
 
-// ---------------------------------------------------------------------------
-// Login
-// ---------------------------------------------------------------------------
-
 function isLoginPage() {
   try {
     return new URL(page.url()).pathname.startsWith("/login");
   } catch {
-    return false; // about:blank and friends
+    return false;
   }
 }
 
 async function ensureLoggedIn() {
   await page.goto(AUTH_CHECK_URL, { waitUntil: "networkidle2" });
 
-  // If the session is valid we stay put; otherwise the app redirects to /login.
   if (!isLoginPage()) {
     console.log("Already signed in — continuing.");
     return;
@@ -121,27 +120,45 @@ async function ensureLoggedIn() {
   }
 
   while (isLoginPage()) {
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await sleep(LOGIN_POLL_INTERVAL);
   }
 
-  await page.waitForNetworkIdle({ idleTime: 500 }).catch(() => {});
+  await page.waitForNetworkIdle({ idleTime: NETWORK_IDLE_TIME }).catch(() => { });
+
   console.log("Signed in — starting replay.");
 }
 
 await restoreCookies();
 await ensureLoggedIn();
 
-// ---------------------------------------------------------------------------
-// Replay setup
-// ---------------------------------------------------------------------------
+const LOCAL_STORAGE = {
+  "datatable-episode-name": "266px",
+  "datatable-sequence-Name": "295px",
+  "datatable-shot-Name": "232px",
+};
 
-// Output to <replay-dir>/images/<replay-basename>/
-const replayDir = path.dirname(replayPath);
-const replayBasename = path.basename(replayPath, path.extname(replayPath));
-const screenshotsDir = path.join(replayDir, "images", replayBasename);
+await page.evaluateOnNewDocument((entries) => {
+  try {
+    for (const [k, v] of Object.entries(entries)) localStorage.setItem(k, v);
+  } catch { }
+}, LOCAL_STORAGE);
+
+await page.evaluate((entries) => {
+  for (const [k, v] of Object.entries(entries)) localStorage.setItem(k, v);
+}, LOCAL_STORAGE);
+await page.reload({ waitUntil: "networkidle2" });
+
+console.log(
+  `Seeded ${Object.keys(LOCAL_STORAGE).length} localStorage entrie(s).`,
+);
+
+const replayDir = path.dirname(path.resolve(replayPath));
+const screenshotsDir = path.join(replayDir, "screenshots");
 
 await fs.mkdir(screenshotsDir, { recursive: true });
+
 let stepIndex = 0;
+let metaIndex = 0;
 
 const PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQADhQGAWjR9awAAAABJRU5ErkJggg==";
@@ -150,11 +167,38 @@ const tmpUploadFile = path.join(os.tmpdir(), "test-upload.png");
 await fs.writeFile(tmpUploadFile, Buffer.from(PNG_BASE64, "base64"));
 console.log(`Temporary upload file created at: ${tmpUploadFile}`);
 
-// Step types @puppeteer/replay's parse() won't accept
-const UNSUPPORTED_TYPES = new Set(["uploadFile"]);
+const UNSUPPORTED_TYPES = new Set(["uploadFile", "end"]);
+
+const INERT_TYPES = new Set(["end"]);
+
+const isIgnored = (meta) => meta?.ignore === true;
 
 class Extension extends PuppeteerRunnerExtension {
+  currentMeta = null;
+
+  async beforeEachStep(step, flow) {
+    await super.beforeEachStep(step, flow);
+
+    if (step.type === "setViewport") return;
+
+    const meta = stepMeta[metaIndex++];
+    this.currentMeta = meta;
+
+    if (isIgnored(meta)) {
+      console.log(`[step —] ${step.type} (ignored)`);
+      return;
+    }
+
+    if (INERT_TYPES.has(step.type)) {
+      console.log(`[step ${stepIndex}] ${step.type} (inert)`);
+      return;
+    }
+
+    console.log(`[step ${stepIndex}] ${step.type}`);
+  }
+
   async runStep(step, flow) {
+    if (INERT_TYPES.has(step.type)) return;
     if (step.type === "uploadFile") {
       await this.handleFileUpload(step);
       return;
@@ -173,7 +217,7 @@ class Extension extends PuppeteerRunnerExtension {
       ),
       page.locator(":scope >>> div.is-active input"),
     ])
-      .setTimeout(10000)
+      .setTimeout(UPLOAD_LOCATOR_TIMEOUT)
       .waitHandle();
 
     await element.uploadFile(tmpUploadFile);
@@ -181,10 +225,19 @@ class Extension extends PuppeteerRunnerExtension {
 
   async afterEachStep(step, flow) {
     await super.afterEachStep(step, flow);
+
+    if (step.type === "setViewport") return;
+    if (INERT_TYPES.has(step.type)) return;
+    if (isIgnored(this.currentMeta)) return;
+
     await Promise.race([
-      page.waitForNetworkIdle({ idleTime: 500 }),
-      new Promise((resolve) => setTimeout(resolve, 3000)),
+      page.waitForNetworkIdle({ idleTime: NETWORK_IDLE_TIME }),
+      sleep(NETWORK_IDLE_TIMEOUT),
     ]);
+
+    await sleep(
+      step.type === "navigate" ? NAVIGATE_SETTLE_DELAY : STEP_SETTLE_DELAY,
+    );
 
     const filename = path.join(
       screenshotsDir,
@@ -200,26 +253,32 @@ class Extension extends PuppeteerRunnerExtension {
 const recordingText = await fs.readFile(replayPath, "utf8");
 const rawRecording = JSON.parse(recordingText);
 
-// Stash upload steps with their original index BEFORE removing them
-const uploadSteps = {};
+const rawSteps = {};
+const stepMeta = [];
+
 rawRecording.steps = rawRecording.steps.map((step, i) => {
+  if (step.type === "setViewport") return step;
+
+  stepMeta.push({ ignore: step.ignore === true });
+
   if (UNSUPPORTED_TYPES.has(step.type)) {
-    uploadSteps[i] = step; // save for runStep to pick up
-    // Replace with a no-op step that parse() accepts
-    return { type: "waitForElement", selectors: ["body"], timeout: 100 };
+    rawSteps[i] = step;
+    return {
+      type: "waitForElement",
+      selectors: ["body"],
+      timeout: NOOP_STEP_TIMEOUT,
+    };
   }
   return step;
 });
 
-// Now parse() won't choke on unknown types
 const recording = parse(rawRecording);
 
-// Patch the parsed steps back so runStep sees the real uploadFile objects
-recording.steps = recording.steps.map((step, i) => uploadSteps[i] ?? step);
+recording.steps = recording.steps.map((step, i) => rawSteps[i] ?? step);
 
 const runner = await createRunner(
   recording,
-  new Extension(browser, page, 7000),
+  new Extension(browser, page, STEP_TIMEOUT),
 );
 
 try {

@@ -119,6 +119,10 @@ Click the tab for the entity type you need (asset, shot, sequence, episode, or e
 
 ![update task type button](/guides/task-configuration/managing-task-types/images/1.png)
 
+## Archive a Task Type
+
+If you want to hide a task type but don't want to remove it from the instance, you can edit a task type to archive it.
+
 ## Remove a Task Type
 
 ::: danger Attention

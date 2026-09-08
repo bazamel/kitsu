@@ -25,11 +25,11 @@ It's time to create **shots** for your production.
 You need to go to the **Shots** page: you can use the
 dropdown menu and click on the **SHOTS**.
 
-![Drop down menu shot](/img/getting-started/drop_down_menu_shot.png)
+![Drop down menu shot](/guides/production-structure/manage-shots/screenshots/002.png)
 
 Click on the **Add shots** button to start with the shot creation.
 
-![First add shots](/img/getting-started/new_shot.png)
+![First add shots](/guides/production-structure/manage-shots/screenshots/003.png)
 
 ::: warning
 When you create a shot, the task workflow you have designed will be applied, and all the tasks will be created at the same time as the shot.
@@ -37,7 +37,7 @@ When you create a shot, the task workflow you have designed will be applied, and
 
 A new pop-up opens for the creation of the shots. You can now add sequences and corresponding shots:
 
-![Manage shots](/img/getting-started/manage_shot.png)
+![Manage shots](/guides/production-structure/manage-shots/screenshots/004.png)
 
 Enter the first sequence, for instance, SQ01, then click `add`. 
 
@@ -55,7 +55,7 @@ Now, let's add more shots.
 
 The input field already pre-writes an incremented name code based on your padding, so you just have to keep clicking on `add` to create more shots:
 
-![Add shots](/img/getting-started/add_shots.png)
+![Add shots](/guides/production-structure/manage-shots/screenshots/011.png)
 
 To add more sequences, go to the left part, type the name of your new sequence, and then click on `add`.
 
@@ -152,32 +152,32 @@ All your shots are imported into Kitsu, and the task is created according to you
 
 If you want to see the details of a shot, click on its name.
 
-![Shot detail](/img/getting-started/shot_detail.png)
+![Shot detail](/guides/production-structure/manage-shots/screenshots/012.png)
 
 A new page opens with the list of the tasks, the assignation, and the status newsfeed on the right.
 You can navigate through each by clicking on the name of the tabs.
 
-![Shot detail page](/img/getting-started/shot_detail_page.png)
+![Shot detail page](/guides/production-structure/manage-shots/screenshots/013.png)
 
 You can click on the status of each task to open the comment panel and see the history of the comments and the different versions.
 
-![Shot detail page](/img/getting-started/shot_detail_page_panel.png)
+![Shot detail page](/guides/production-structure/manage-shots/screenshots/014.png)
 
 You can also access the **Casting**,
 
-![Asset detail casting](/img/getting-started/shot_detail_page_casting.png)
+![Shot detail casting](/guides/production-structure/manage-shots/screenshots/015.png)
 
 The **Schedule** is available if you have previously filled out the task type page data. If you have already filled out the data, you can modify them directly here.
 
-![Asset detail casting](/img/getting-started/shot_detail_page_schedule.png)
+![Shot detail schedule](/guides/production-structure/manage-shots/screenshots/016.png)
 
 the **Preview Files** uploaded at various task types,
 
-![Asset detail casting](/img/getting-started/shot_detail_page_file.png)
+![Shot detail preview](/guides/production-structure/manage-shots/screenshots/017.png)
 
 And the **Timelog** if people have filled out their timesheet on the tasks of this asset.
 
-![Asset detail casting](/img/getting-started/shot_detail_page_timelog.png)
+![Shot detail timelog](/guides/production-structure/manage-shots/screenshots/018.png)
 
 <!-- #endregion view-shots -->
 
@@ -195,7 +195,7 @@ You can update your shots at any point, change their names and sequences, modify
 
 You can edit shots by going to the shot page, hovering over the shot you want to modify, and then clicking on the **Edit** button:
 
-![Edit an asset](/img/getting-started/asset_edit01.png)
+![Edit a shot](/guides/production-structure/manage-shots/screenshots/012.png)
 
 To extend the description on the main shot page, click on the shot name, and a pop-up with the full description will open.
 
@@ -226,15 +226,15 @@ The column will be displayed if you have created your shots and imported the num
 
 You need to edit the shots to fill in the frame range information. Click on the `Edit` icon on the right side of the shot line:
 
-![edit shot Change sequence](/img/getting-started/edit_shot.png)
+![edit shot Change sequence](/guides/production-structure/manage-shots/screenshots/012.png)
 
 You can enter the shots **Frame In** and **Frame Out** in the new window. Then, save by clicking the **Confirm** button.
 
-![Shot edit page](/img/getting-started/shot_edit.png)
+![Shot edit page](/guides/production-structure/manage-shots/screenshots/026.png)
 
 Now, the frame range appears on the general spreadsheet of the shot page
 
-![Shot edit page](/img/getting-started/shot_framerange_global.png)
+![Shot edit page](/guides/production-structure/manage-shots/screenshots/028.png)
 
 ::: tip
 If you enter the **Frame In** and **Frame Out**, Kitsu automatically calculates the **Number of Frame**.

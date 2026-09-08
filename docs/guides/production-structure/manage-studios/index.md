@@ -2,7 +2,7 @@
 
 <!-- #region body -->
 
-A studio is a label used to organize teams and tasks in multi-studio or multi-site productions.
+A studio is a label used to organize teams in multi-studio or multi-site productions.
 
 You can use it to filter tasks, schedules, and teams per studio.
 

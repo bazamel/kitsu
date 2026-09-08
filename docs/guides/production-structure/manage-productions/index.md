@@ -14,13 +14,9 @@ flowchart TD
 
 <!-- #region setup -->
 
-Click on the `Create a new production` button:
+Click on the `Create a new production` button to make the page appear:
 
-![Create a production](/img/getting-started/create_production.png)
-
-A dialog appears:
-
-![Add a production](/img/getting-started/add_production.png)
+![Create a production](/guides/production-structure/manage-productions/screenshots/001.png)
 
 Enter your production name, choose a **Production Type**, and select your production style (2D, 3D).
 
@@ -34,7 +30,7 @@ You can define your production workflow in the next part, 3 to 6.
 
 You need to select your asset task type (3), shot task type (4), task status (5), and asset types (6).
 
-![Add a production Pipeline](/img/getting-started/add_production_pipe.png)
+![Add a production Pipeline](/guides/production-structure/manage-productions/screenshots/013.png)
 
 
 ::: tip
@@ -56,8 +52,6 @@ See the **Import from CSV** sections of each entity page for more details:
 
 Validate everything with the `All done` button.
 
-![all done button](/img/getting-started/all_done_go.png) 
-
 ### Using Production Templates
 
 Getting a new production set up often means repeating the same configuration steps over and over like choosing task types for shots and assets, defining task statuses, and adjusting project-wide settings to match your team's workflow.
@@ -78,7 +72,7 @@ Check out the section [Create Your Own Production Template](#create-your-own-pro
 
 From the **Navigation Menu**, choose on the dropdown menu the **Setting**. 
 
-![Drop Down menu Setting](/img/getting-started/drop_down_menu_setting.png)
+![Drop Down menu Setting](/guides/production-structure/manage-productions/screenshots/017.png)
 
 The first tab, **Parameters** allows you to change the **Technical information** of the production.
 
@@ -108,7 +102,7 @@ While the default view shows their tasks in a traditional list view, they can al
 
 To customize the board view, go to the settings page of your production.
 
-![Setting page](/img/getting-started/drop_down_menu_setting.png)
+![Setting page](/guides/production-structure/manage-productions/screenshots/017.png)
 
 In the **Task Status** tab, you can reorder the statuses for the **Board** view.
 
@@ -145,11 +139,11 @@ It's good practice to archive a production once it's over, in case you need to r
 
 First, click on the Edit button for the target production in the `Main Menu > Studio > Productions` page:
 
-![production edit button](/guides/production-structure/manage-productions/images/0.png)
+![production edit button](/guides/production-structure/manage-productions/screenshots/024.png)
 
 In the dialog, select `Closed` for the production status and click `Confirm`:
 
-![close production](/guides/production-structure/manage-productions/images/1.png)
+![close production](/guides/production-structure/manage-productions/screenshots/026.png)
 
 Your production is now listed as `Closed`.
 
@@ -159,7 +153,7 @@ Deleting a production requires you close it first.
 
 Once this is done, simply click the `Delete` button in the corresponding closed production list item and your production will be removed from your instance:
 
-![delete production](/guides/production-structure/manage-productions/images/4.png)
+![delete production](/guides/production-structure/manage-productions/screenshots/030.png)
 
 ## Create Your Own Production Template
 

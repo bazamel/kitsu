@@ -18,7 +18,7 @@ It's especially useful when you have macro tasks to track, like Story and color 
 
 Use the navigation menu to go to the **Sequences** page:
 
-![Navigation Sequences](/img/getting-started/drop_down_menu_sequence_page.png)
+![Navigation Sequences](/guides/production-structure/manage-sequences/screenshots/002.png)
 
 ::: warning
 This new page behaves like the asset and shot global page.
