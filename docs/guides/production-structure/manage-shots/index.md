@@ -189,6 +189,8 @@ First, [make sure the missing task type is added](/guides/task-configuration/man
 
 Then go back to the `Shots` page and click on `+ Add tasks`.
 
+For more details on creating a task type, [refer to the corresponding documentation page](/guides/task-configuration/managing-task-types/).
+
 ## Update Shots
 
 You can update your shots at any point, change their names and sequences, modify their descriptions, and add any custom information you added to the global page.
@@ -198,6 +200,8 @@ You can edit shots by going to the shot page, hovering over the shot you want to
 ![Edit a shot](/guides/production-structure/manage-shots/screenshots/012.png)
 
 To extend the description on the main shot page, click on the shot name, and a pop-up with the full description will open.
+
+![Edit a shot](/guides/production-structure/manage-shots/screenshots/021.png)
 
 ### From CSV
 
@@ -244,7 +248,13 @@ Now that you have unlocked the **Frames**, **In**, and **Out** columns, you can 
 
 ![Shot edit page](/img/getting-started/shot_framerange_global_edit.png)
 
+::: info
 Again, you can use the **CSV Import** to update your frame ranges faster.
+:::
+
+::: info
+You can take the number of frame from your video preview.
+:::
 
 ## Access a Shot's Change History
 
@@ -262,6 +272,9 @@ And a dialog will appear with a table listing all your changes:
 
 Hover over the shot row you wish to remove in the list and click the `Delete` icon:
 
-![remove shot button](/guides/production-structure/manage-shots/images/0.png)
+![remove shot button](/guides/production-structure/manage-shots/screenshots/029.png)
+![remove shot button](/guides/production-structure/manage-shots/screenshots/031.png)
+
+This will archive / close the shot. To permanently delete it, click the `Delete` icon again.
 
 <!-- #endregion body -->

@@ -37,7 +37,6 @@
                     "pierce/div.nav-left img"
                 ]
             ],
-            ,
             "offsetY": 14.5,
             "offsetX": 14
         },
@@ -48,9 +47,7 @@
                 ["#app > div > div > div.navbar > aside"]
             ],
             "x": 0,
-            "y": 99999,
-            ,
-            "startTime": 20
+            "y": 99999
         },
         {
             "type": "click",
@@ -101,7 +98,6 @@
                     "pierce/div.nav-left img"
                 ]
             ],
-            ,
             "offsetY": 19.5,
             "offsetX": 14
         },
@@ -165,7 +161,6 @@
                     "pierce/th:nth-of-type(6) a"
                 ]
             ],
-            ,
             "offsetY": 11.546875,
             "offsetX": 43.5
         },
@@ -202,7 +197,6 @@
                     "pierce/div.topbar a > img"
                 ]
             ],
-            ,
             "offsetY": 20.5,
             "offsetX": 25
         },
@@ -292,7 +286,6 @@
                     "pierce/div.topbar a > img"
                 ]
             ],
-            ,
             "offsetY": 16.5,
             "offsetX": 17
         },
@@ -335,7 +328,6 @@
                     "pierce/div.nav-left img"
                 ]
             ],
-            ,
             "offsetY": 20.5,
             "offsetX": 19
         },
@@ -378,7 +370,6 @@
                     "pierce/div.nav-left img"
                 ]
             ],
-            ,
             "offsetY": 15.5,
             "offsetX": 15
         },
@@ -421,7 +412,6 @@
                     "pierce/div.nav-left img"
                 ]
             ],
-            ,
             "offsetY": 22.5,
             "offsetX": 21
         },
@@ -464,7 +454,6 @@
                     "pierce/div.nav-left img"
                 ]
             ],
-            ,
             "offsetY": 17.5,
             "offsetX": 12
         },
@@ -554,7 +543,6 @@
                     "pierce/div.nav-left img"
                 ]
             ],
-            ,
             "offsetY": 24.5,
             "offsetX": 25
         },
@@ -647,7 +635,6 @@
                     "text/Assets"
                 ]
             ],
-            ,
             "offsetY": 17.5,
             "offsetX": 58.40625
         },
@@ -687,7 +674,6 @@
                     "pierce/div.section-menu > div > div"
                 ]
             ],
-            ,
             "offsetY": 19.5,
             "offsetX": 73.40625
         },

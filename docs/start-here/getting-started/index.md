@@ -22,21 +22,17 @@ By the end, you'll have a configured studio, an onboarded team, and a clear path
 
 First, let's customize your Kitsu instance to match your studio culture.
 
-Click on the `Main Menu` button in the top left corner:
+Click on the `Main Menu` button in the top left corner, and under the `Admin` section, click on the `Settings` page:
 
-![Main Menu Button](/img/getting-started/main_button.png)
-
-Under the `Admin` section, click on the `Settings` page.
-
-![Main Menu Settings](/img/getting-started/menu_settings.png)
+![Main Menu Button](/start-here/getting-started/screenshots/002.png)
 
 The page lists global settings that affect every production:
 
-![Kitsu Settings](/img/getting-started/kitsu_setting.png)
+![Kitsu Settings](/start-here/getting-started/screenshots/003.png)
 
 1. Click on the **Set studio logo** button and select an image to replace the Kitsu logo 
-1. Change the **Studio Name** to be used in your Kitsu instance
-1. The number of working hours per day for scheduling and reporting
+2. Change the **Studio Name** to be used in your Kitsu instance
+3. The number of working hours per day for scheduling and reporting
 
 The Preferences section depend on your tastes:
 
@@ -47,6 +43,8 @@ The Preferences section depend on your tastes:
 1. Enable dark or light theme by default
 
 Finally, you will also find a section covering various chat integrations. Please refer to the developer documentation's [Chat Integration](https://dev.kitsu.cloud/integrations/messaging/slack/) pages for more information on how to configure this.
+
+![Kitsu chat integrations](/start-here/getting-started/screenshots/004.png)
 
 ::: warning
 Remember to **Save Settings** at the end once you are finished.

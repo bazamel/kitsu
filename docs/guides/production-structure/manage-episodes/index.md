@@ -20,6 +20,8 @@ You'll then reach the Episodes page with a full list of episodes for the current
 
 ![episodes page](/guides/production-structure/manage-episodes/images/1.png)
 
+If you click on an episode name, you'll reach the detail page.
+
 ## Create Episodes
 
 <!-- #region setup -->
@@ -37,6 +39,10 @@ A modal appears. Fill the form and click `Confirm`:
 - **Description**: a short description of what the episode is about
 - **Resolution**: the episode resolution e.g "1920x1080", "4K", etc.
 
+::: info
+You can also create episodes from the global shot page.
+:::
+
 <!-- #endregion setup -->
 
 ## Update Episodes
@@ -50,5 +56,9 @@ Hover over the episode row you wish to edit in the list and click the `Edit` ico
 Hover over the episode row you wish to remove in the list and click the `Delete` icon:  
 
 ![delete episode button](/guides/production-structure/manage-episodes/images/5.png)
+
+::: warning
+Deleting an episode will remove the corresponding sequences, shots, and tasks. You cannot retrieve them back.
+:::
 
 <!-- #endregion body -->

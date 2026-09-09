@@ -11,19 +11,10 @@ Kitsu's data model organizes work around a hierarchy of production entities (stu
 
 ```mermaid
 flowchart TD
-    PRODUCTION -->|contains| ASSET
-    ASSET_TYPE -->|categorizes| ASSET
-    ASSET -->|cast in| SHOT
-
-    SEQUENCE -->|tracked by| TASK
-    SHOT -->|tracked by| TASK
-    ASSET -->|tracked by| TASK
-    DEPARTMENT -->|groups| TASK_TYPE
     TASK_TYPE -->|type of| TASK
     TASK_STATUS -->|current state of| TASK
 ```
-- **Asset** - A reusable production element (character, prop, set, FX setup) that can be cast into one or more shots.
-- **Asset Type** - A category for assets (e.g. Character, Prop, Environment, FX).
+
 - **Task** - A unit of tracked work, always attached to either a shot or an asset, with an assigned task type and current status.
 - **Task Type** - Defines the kind of work a task represents (e.g. Layout, Animation, Lighting); belongs to a department.
 - **Task Status** - The current state of a task (e.g. Todo, Work in Progress, Done, Retake, Waiting For Approval).

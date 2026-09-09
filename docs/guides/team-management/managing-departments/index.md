@@ -6,13 +6,18 @@ Departments are designed to help supervisors and artists focus on their tasks. O
 
 Departments are also used to define what metadata columns appear for users within that department. If a metadata column is linked to a department, then they will only show up for users in that department. If a metadata column is not associated with a department, they will show up for everyone.
 
+<!-- #region setup -->
+
 To manage your departments, select the **Department** page under the **Admin** section from the main navigation menu.
 
-![Task Type](/img/getting-started/deparment_menu.png)
+![departments menu](/guides/team-management/managing-departments/screenshots/001.png)
+
+You'll reach the list of available departments:
+
+![departments page](/guides/team-management/managing-departments/screenshots/002.png)
 
 ## Creating Departments
 
-<!-- #region setup -->
 
 Defining your studio's Departments is typically the first step in setup, as multiple objects such as people and task types are linked to a department.
 
@@ -20,22 +25,21 @@ Defining your studio's Departments is typically the first step in setup, as mult
 By default, Kitsu provides some example departments to help you get started.
 :::
 
-If you need to create more departments, you can click on the `Add a department` button:
+If you need to create more departments, you can click on the `Add a department` button.
 
-![create department button](/img/getting-started/create_department_button.png)
+![Create department](/guides/team-management/managing-departments/screenshots/004.png)
 
 When adding a department, you need to define:
 
 - The name of the department
 - A color (it will be displayed as a small round circle next to a column task type or a custom column)
 
-![Create department](/img/getting-started/create_department_detail.png)
 
 Click on **Confirm** to save your changes.
 
 Once you finish creating the department, your page should look like this. Each department has a unique name and a corresponding color:
 
-![Customized department](/img/getting-started/customized_department.png)
+![Customized department](/guides/team-management/managing-departments/screenshots/006.png)
 
 <!-- #endregion setup -->
 
@@ -43,8 +47,18 @@ Once you finish creating the department, your page should look like this. Each d
 
 To update a department simply stay in the `Departments` page and hover your cursor over the department row you wish to edit and click the `Edit` icon.
 
+![update department](/guides/team-management/managing-departments/screenshots/019.png)
+![update department](/guides/team-management/managing-departments/screenshots/020.png)
+
+::: tip
+You can set a department to `Archived` to disable it instead of removing it and lose all associated data.
+:::
+
 ## Delete Departments
 
 To remove a department, hover over the department row you wish to select and click the `Delete` icon.
+
+![delete department](/guides/team-management/managing-departments/screenshots/023.png)
+![delete department](/guides/team-management/managing-departments/screenshots/024.png)
 
 <!-- #endregion body -->

@@ -8,7 +8,7 @@
             "deviceScaleFactor": 1,
             "isMobile": false,
             "hasTouch": false,
-            "isLandscape": false
+            "isLandscape": true
         },
         {
             "type": "navigate",
@@ -38,7 +38,6 @@
             ],
             "offsetY": 25.5,
             "offsetX": 10,
-            ,
             "startTime": 12.6
         },
         {
@@ -189,7 +188,6 @@
             ],
             "offsetY": 13.5,
             "offsetX": 13,
-            ,
             "startTime": 70
         },
         {
@@ -252,22 +250,14 @@
                 ]
             ],
             "offsetY": 14.5,
-            "offsetX": 67.40625,
-            ,
-            "startTime": 79
+            "offsetX": 67.40625
         },
         {
             "type": "click",
             "target": "main",
             "selectors": [
                 [
-                    "div.topbar div:nth-of-type(21) span"
-                ],
-                [
-                    "xpath///*[@id=\"app\"]/div/div/div[1]/nav/div[1]/div/div[3]/div/div[1]/div[2]/div[21]/a/span"
-                ],
-                [
-                    "pierce/div.topbar div:nth-of-type(21) span"
+                    "#app > div > div > div.topbar > nav > div.nav-left > div > div:nth-child(3) > div > div.section-menu > div.select-input > div:nth-child(20)"
                 ]
             ],
             "offsetY": 14.703125,
@@ -346,16 +336,7 @@
             "target": "main",
             "selectors": [
                 [
-                    "aria/Remove[role=\"button\"]"
-                ],
-                [
-                    "div.columns > div:nth-of-type(1) > div:nth-of-type(3) button"
-                ],
-                [
-                    "xpath///*[@id=\"app\"]/div/div/div[3]/div/div[5]/div/div/div[2]/div[1]/div[3]/table/tbody/tr/td[4]/button"
-                ],
-                [
-                    "pierce/div.columns > div:nth-of-type(1) > div:nth-of-type(3) button"
+                    "#app > div > div > div.production-settings.fixed-page > div > div:nth-child(5) > div > div > div.columns > div:nth-child(1) > div:nth-child(3) > table > tbody > tr:nth-child(7) > td.remove > button"
                 ]
             ],
             "offsetY": 17.640625,
@@ -377,9 +358,7 @@
                 ]
             ],
             "offsetY": 18.5,
-            "offsetX": 10,
-            ,
-            "startTime": 97
+            "offsetX": 10
         },
         {
             "type": "click",
@@ -439,9 +418,7 @@
                 ]
             ],
             "offsetY": 5.28125,
-            "offsetX": 0.296875,
-            ,
-            "startTime": 114.5
+            "offsetX": 0.296875
         },
         {
             "type": "click",
@@ -526,9 +503,7 @@
                 ]
             ],
             "offsetY": 10.28125,
-            "offsetX": 16.5,
-            ,
-            "startTime": 134
+            "offsetX": 16.5
         },
         {
             "type": "click",
@@ -584,9 +559,7 @@
                 ]
             ],
             "offsetY": 15.5,
-            "offsetX": 15,
-            ,
-            "startTime": 150
+            "offsetX": 15
         },
         {
             "type": "click",
@@ -648,9 +621,7 @@
                 ]
             ],
             "offsetY": 15.5,
-            "offsetX": 55.40625,
-            ,
-            "startTime": 159
+            "offsetX": 55.40625
         },
         {
             "type": "click",

@@ -20,9 +20,9 @@ const COOKIE_FILE = path.join(os.homedir(), ".cache", "replay-cookies.json");
 const PERSIST_DAYS = 30;
 
 // --- Timing (all values in ms) ---
-const NETWORK_IDLE_TIME = 100; // quiet period that counts as "idle"
-const STEP_SETTLE_DELAY = 100; // pause after every step before screenshotting
-const NAVIGATE_SETTLE_DELAY = 100; // extra pause after a navigate step
+const NETWORK_IDLE_TIME = 500; // quiet period that counts as "idle"
+const STEP_SETTLE_DELAY = 500; // pause after every step before screenshotting
+const NAVIGATE_SETTLE_DELAY = 500; // extra pause after a navigate step
 
 const STEP_TIMEOUT = 7000; // per-step timeout handed to the runner
 const LOGIN_POLL_INTERVAL = 500; // how often to re-check the login page

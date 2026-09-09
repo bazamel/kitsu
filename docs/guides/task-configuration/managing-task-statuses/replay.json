@@ -38,9 +38,7 @@
                 ]
             ],
             "offsetY": 10.5,
-            "offsetX": 9,
-            ,
-            "startTime": 15
+            "offsetX": 9
         },
         {
             "type": "click",
@@ -102,9 +100,7 @@
                     "pierce/form > div:nth-of-type(1) input"
                 ]
             ],
-            "target": "main",
-            ,
-            "startTime": 80
+            "target": "main"
         },
         {
             "type": "change",
@@ -120,9 +116,7 @@
                     "pierce/form > div:nth-of-type(2) input"
                 ]
             ],
-            "target": "main",
-            ,
-            "startTime": 85.5
+            "target": "main"
         },
         {
             "type": "scroll",
@@ -133,9 +127,7 @@
                 ]
             ],
             "x": 0,
-            "y": 99999,
-            ,
-            "startTime": 143
+            "y": 99999
         },
         {
             "type": "click",
@@ -155,8 +147,7 @@
                 ]
             ],
             "offsetY": 13.921875,
-            "offsetX": 42.421875,
-            "startTime": 150
+            "offsetX": 42.421875
         },
         {
             "type": "click",
@@ -173,9 +164,7 @@
                 ]
             ],
             "offsetY": 14.5,
-            "offsetX": 18,
-            ,
-            "startTime": 157.5
+            "offsetX": 18
         },
         {
             "type": "click",
@@ -195,8 +184,7 @@
                 ]
             ],
             "offsetY": 18.797264099121094,
-            "offsetX": 107.10311698913574,
-            "startTime": 161
+            "offsetX": 107.10311698913574
         },
         {
             "type": "click",
@@ -216,8 +204,7 @@
                 ]
             ],
             "offsetY": 6.421875,
-            "offsetX": 33.5,
-            "startTime": 164.5
+            "offsetX": 33.5
         },
         {
             "type": "click",
@@ -237,27 +224,18 @@
                 ]
             ],
             "offsetY": 19.5,
-            "offsetX": 56.40625,
-            ,
-            "startTime": 168
+            "offsetX": 56.40625
         },
         {
             "type": "click",
             "target": "main",
-            "selectors": [
+           "selectors": [
                 [
-                    "div.topbar div:nth-of-type(21) span"
-                ],
-                [
-                    "xpath///*[@id=\"app\"]/div/div/div[1]/nav/div[1]/div/div[3]/div/div[1]/div[2]/div[21]/a/span"
-                ],
-                [
-                    "pierce/div.topbar div:nth-of-type(21) span"
+                    "#app > div > div > div.topbar > nav > div.nav-left > div > div:nth-child(3) > div > div.section-menu > div.select-input > div:nth-child(20)"
                 ]
             ],
             "offsetY": 8.703125,
-            "offsetX": 36.625,
-            "startTime": 171.2
+            "offsetX": 36.625
         },
         {
             "type": "click",
@@ -278,8 +256,7 @@
                 ]
             ],
             "offsetY": 19,
-            "offsetX": 33.984375,
-            "startTime": 180.5
+            "offsetX": 33.984375
         },
         {
             "type": "click",
@@ -296,8 +273,7 @@
                 ]
             ],
             "offsetY": 18.8125,
-            "offsetX": 54.8125,
-            "startTime": 184
+            "offsetX": 54.8125
         },
         {
             "type": "click",
@@ -314,8 +290,7 @@
                 ]
             ],
             "offsetY": 7.21875,
-            "offsetX": 38.40625,
-            "startTime": 187.7
+            "offsetX": 38.40625
         },
         {
             "type": "click",
@@ -335,8 +310,7 @@
                 ]
             ],
             "offsetY": 14.3125,
-            "offsetX": 28,
-            "startTime": 190.9
+            "offsetX": 28
         },
         {
             "type": "click",
@@ -374,9 +348,7 @@
                 ]
             ],
             "offsetY": 16.5,
-            "offsetX": 17,
-            ,
-            "startTime": 197.2
+            "offsetX": 17
         },
         {
             "type": "click",
@@ -397,8 +369,7 @@
                 ]
             ],
             "offsetY": 12.312896728515625,
-            "offsetX": 107.10311698913574,
-            "startTime": 200.4
+            "offsetX": 107.10311698913574
         },
         {
             "type": "hover",
@@ -415,8 +386,7 @@
                 ]
             ],
             "offsetY": 6.15625,
-            "offsetX": 0.296875,
-            "startTime": 206.8
+            "offsetX": 0.296875
         },
         {
             "type": "click",
@@ -450,9 +420,7 @@
                     "pierce/form > div:nth-of-type(1) input"
                 ]
             ],
-            "target": "main",
-            ,
-            "startTime": 213.4
+            "target": "main"
         },
         {
             "type": "scroll",
@@ -463,9 +431,7 @@
                 ]
             ],
             "x": 0,
-            "y": 99999,
-            ,
-            "startTime": 216.5
+            "y": 99999
         },
         {
             "type": "click",
@@ -503,9 +469,7 @@
                 ]
             ],
             "offsetY": 8.65625,
-            "offsetX": 9.75,
-            ,
-            "startTime": 222.5
+            "offsetX": 9.75
         },
         {
             "type": "click",
@@ -522,9 +486,7 @@
                 ]
             ],
             "offsetY": 8.65625,
-            "offsetX": 9.75,
-            ,
-            "startTime": 225.6
+            "offsetX": 9.75
         },
         {
             "type": "click",
@@ -544,8 +506,7 @@
                 ]
             ],
             "offsetY": 20,
-            "offsetX": 47.421875,
-            "startTime": 228.8
+            "offsetX": 47.421875
         }
     ]
 }

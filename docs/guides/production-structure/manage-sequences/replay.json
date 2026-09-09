@@ -93,6 +93,46 @@
         },
         {
             "type": "click",
+            "target": "main",
+            "selectors": [
+                [
+                    "aria/SQ01[role=\"link\"]"
+                ],
+                [
+                    "div.main-column a:nth-of-type(2)"
+                ],
+                [
+                    "xpath///*[@id=\"app\"]/div/div/div[3]/div[1]/div/div[2]/div[1]/table/tbody/tr/th/div/a[2]"
+                ],
+                [
+                    "pierce/div.main-column a:nth-of-type(2)"
+                ],
+                [
+                    "text/SQ01"
+                ]
+            ],
+            "offsetY": 14.96875,
+            "offsetX": 22.109375
+        },
+        {
+            "type": "click",
+            "target": "main",
+            "selectors": [
+                [
+                    "div.page-header svg"
+                ],
+                [
+                    "xpath///*[@id=\"app\"]/div/div/div[3]/div[1]/div[1]/a/svg"
+                ],
+                [
+                    "pierce/div.page-header svg"
+                ]
+            ],
+            "offsetY": 9.5,
+            "offsetX": 7
+        },
+        {
+            "type": "click",
             
             "target": "main",
             "selectors": [

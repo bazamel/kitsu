@@ -4,9 +4,6 @@
 
 ```mermaid
 flowchart TD
-    SEQUENCE -->|tracked by| TASK
-    SHOT -->|tracked by| TASK
-    ASSET -->|tracked by| TASK
     DEPARTMENT -->|groups| TASK_TYPE
     TASK_TYPE -->|type of| TASK
     TASK_STATUS -->|current state of| TASK
@@ -14,9 +11,11 @@ flowchart TD
 
 A status represents a specific stage or condition that a task must pass through as part of the review and approval process.
 
+<!-- #region setup -->
+
 In the main menu, select the **Task Status** page under the **Admin** section:
 
-![Task Status Menu](/img/getting-started/menu_status_type.png)
+![Task Status Menu](/guides/task-configuration/managing-task-statuses/screenshots/001.png)
 
 ::: tip
 By default, Kitsu already provides some examples Statuses.
@@ -24,11 +23,10 @@ By default, Kitsu already provides some examples Statuses.
 
 You'll reach the `Task Status` page:
 
-![Task Status Default](/img/getting-started/task_status_default.png)
+![Task Status Default](/guides/task-configuration/managing-task-statuses/screenshots/002.png)
 
 ## Create a Task Status
 
-<!-- #region setup -->
 
 Let's create the statuses we intend to use during our **Approval Workflow**.
 
@@ -44,23 +42,26 @@ For example:
 
 These statuses are **just examples** of what is achievable in Kitsu! You are free to create your own as needed.
 
-To do this, from the main page, click on the `Add a task status` button:
+To do this, from the main page, click on the `Add a task status` button in the top right corner.
 
-![Add Task Status](/img/getting-started/add_task_status.png)
+![Add Status](/guides/task-configuration/managing-task-statuses/screenshots/005.png)
 
 You'll then need to define some details about you **Task Status**, including:
 
-![Add Status](/img/getting-started/add_status.png)
+- **NAME** is the explicit name of the status that will be displayed when you hover your mouse over it in the
+- **SHORT NAME** is what will be displayed in Kitsu dashboards
+- Choose a background **color** you prefer for this status
 
-- **NAME**, the explicit name of the status that will be displayed when you hover your mouse over it in the.
-- **SHORT NAME**, what will be displayed in Kitsu.
-- **IS DEFAULT**, the first status that Kitsu will display by default on all tasks. You can only have **ONE** default status in Kitsu.
-- **IS DONE**, if this status is utilized to validate a task (which is beneficial for quota management, organizing the to-do list, and updating episode statistics).
-- **HAS RETAKE VALUE**, if this status is used for commenting on a task (helpful for tracking the back-and-forth discussions on the task type page and for the episode stats page).
-- **IS ARTIST ALLOWED**, are artists allowed to set tasks to this status? If **No**, the artist won't see this status in their list of available statuses. However, they can still post comments on it.
-- **IS CLIENT ALLOWED**, Can the client use this Status? If **No**, the client won't see this status in their list of available statuses.
-- **IS FEEDBACK REQUEST**, if this status is used to request a review (helpful for quota tracking if you don't use a timesheet, it will appear in the Pending tab of the to-do list, and all these statuses will be grouped on the **My Check** page. Kitsu will prompt you to **publish a preview** each time you use this status).
-- Finally, choose a background **color** you prefer for this status.
+You can also select multiple flags:
+
+| Flag | Meaning |
+|---|---|
+| **IS DEFAULT** | The first status Kitsu displays by default on all tasks. Only **ONE** status can be set as default. |
+| **IS DONE** | Marks the status as validating a task: useful for quota management, organizing the to-do list, and updating episode statistics. |
+| **HAS RETAKE VALUE** | Marks the status as one used for commenting on a task: helpful for tracking back-and-forth discussion on the task type page and the episode stats page. |
+| **IS ARTIST ALLOWED** | Controls whether artists can set tasks to this status. If **No**, artists won't see it in their available statuses list, though they can still comment on it. |
+| **IS CLIENT ALLOWED** | Controls whether clients can use this status. If **No**, clients won't see it in their available statuses list. |
+| **IS FEEDBACK REQUEST** | Marks the status as used to request a review: helpful for quota tracking without a timesheet, appears in the Pending tab of the to-do list, and groups these statuses on the **My Check** page. Kitsu will prompt for a **preview publish** each time this status is used. |
 
 Click on **Confirm** to save your changes.
 
@@ -81,18 +82,16 @@ You'll notice a few tasks statuses listed under the category of *Concept Status*
 
 On the **Navigation Menu**, choose on the dropdown menu the **Setting**.
 
-![Drop Down menu Setting](/img/getting-started/drop_down_menu_setting.png)
+![Drop Down menu Setting](/guides/task-configuration/managing-task-statuses/screenshots/011.png)
 
 Per default, Kitsu will load the **Task Status** you have defined when creating the production.
 
 However, you can add or remove specific statuses during production if they are created on the Global Library first.
 
-![Setting status new](/img/getting-started/setting_status_new.png)
+![Setting status new](/guides/task-configuration/managing-task-statuses/screenshots/013.png)
 
 On the **Task Status** tab, you can choose which **status** you want to add or remove on this production,
 validate your choice with the **add** button.
-
-![Setting Add Status](/img/getting-started/setting_status_add.png)
 
 ## Update a Task Status
 
@@ -132,7 +131,7 @@ You can also ask Kitsu to **copy the latest preview** with the Automation.
 
 Go to the main menu and select **Automations**:
 
-![Main menu Status Automation](/img/getting-started/main_menu_status_automation.png)
+![Main menu Status Automation](/guides/task-configuration/managing-task-statuses/screenshots/001.png)
 
 From this page, you can create **Status Automations** by clicking the `+ Add status automation` button:
 

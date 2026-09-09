@@ -20,45 +20,31 @@ Use the navigation menu to go to the **Sequences** page:
 
 ![Navigation Sequences](/guides/production-structure/manage-sequences/screenshots/002.png)
 
-::: warning
-This new page behaves like the asset and shot global page.
+You can access all the sequences in one go or per episode if your production is a TV show:
 
-To use this page, You first need to create dedicated task types on your **Global Library**
- with the **Sequence** attribute.
+![Sequences page](/guides/production-structure/manage-sequences/screenshots/003.png)
 
-See the [Creating a New Task Type](/guides/task-configuration/managing-task-types/#creating-a-new-task-type) section to create a new Task Type.
-
-Once you have created your **Task Types**  on your **Global Library**, add them to your
-**Production Library** (setting page).
-:::
-
-## Create a Sequence
-
-<!-- #region setup -->
-
-Once you have your task types ready in the settings page, you can create a sequence.
-
-This new page behaves like the asset and shot global page. You can add your edits with the **+ New Sequence** button.
-
-You can assign tasks, do the review, change status, etc.
-
-You can add a metadata column, fill in the description, etc.
-
-::: tip
-You can create a sequence directly from here (+New sequence button) or create a sequence linked to your shots from the global shot page.
-:::
-
-You can **Rename** and **Delete** the Sequence entity on this page, as for the asset and shot entity.
+You can assign tasks, do reviews, change status, add a metadata column, fill in the description, etc.
 
 If you click on the name of a sequence, you will see the detail page of this sequence.
 
-![Sequence detailed page](/img/getting-started/sequence_detail_page.png)
+![Sequence detailed page](/guides/production-structure/manage-sequences/screenshots/004.png)
 
 On the detailed page, you have access to the sequence casting to see all the assets used in the whole sequence.
 
 You can also access the schedule, Preview Files, Activity, and Timelog of the sequence **tasks**.
 
-<!-- #endregion setup -->
+## Create a Sequence
+
+<!-- #region setup -->
+
+You can create a sequence with the **+ New Sequence** button.
+
+![add a sequence](/guides/production-structure/manage-sequences/screenshots/006.png)
+
+::: tip
+You can create a sequence directly from here (+New sequence button) or create a sequence linked to your shots from the global shot page.
+:::
 
 ## Update a Sequence
 

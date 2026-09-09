@@ -14,11 +14,15 @@ To assign tasks to people, you first need to create an account for them in Kitsu
 
 Go to the **Main Navigation Menu** and choose the **People** page under the **STUDIO** section.
 
-![People Menu](/img/getting-started/main_menu_people.png)
+![People Menu](/guides/team-management/managing-teams/screenshots/001.png)
 
-Then, click on the `Add a new user` button to open the creation modal:
+You reach the People page. That's where you can manage teams:
 
-![Create a new user](/img/getting-started/create_employee.png)
+![People page](/guides/team-management/managing-teams/screenshots/002.png)
+
+Then, click on the `Add a new user` button in the top right corner to open the creation modal:
+
+![Create a new user](/guides/team-management/managing-teams/screenshots/003.png)
 
 You will then be prompted to enter the following information: (please note from of the fields are required in order to create the user)
 - 1) First Name (**MANDATORY**)
@@ -29,6 +33,8 @@ You will then be prompted to enter the following information: (please note from 
 ::: danger Important!
 An email address is **mandatory** and must be unique in order to create an account.
 :::
+
+![Create a new user](/guides/team-management/managing-teams/screenshots/010.png)
 
 - 5) You can specify one or multiple **Departments** to link a user to.
 
@@ -42,7 +48,7 @@ The department supervisor will be able to comment on all tasks within their depa
 
 ![Department filtered view](/img/getting-started/department_filtered_view.png)
 
-- 6) Role: This is where you will define the permission role of the user (this will be explained below).
+- 6) Role: This is where you will define the permission role of the user. [Look at the User Permission Roles documentation](/guides/team-management/team-roles/) to learn more about the different roles.
 
 - 7) Active
 
@@ -66,11 +72,11 @@ You don't need to add the Studio Manager role to a team to give them read permis
 
 To add users to a team, within your project, use the **navigation** dropdown menu at the top of the page and select the **TEAM** page.
 
-![Drop down menu team](/img/getting-started/drop_down_menu_team.png)
+![Drop down menu team](/guides/team-management/managing-teams/screenshots/017.png)
 
 On the **Team** page, you can see all the users who have been assigned to this project. If you've just created a brand new project, this page will be empty. You can also quickly switch to the team page for a different project by selecting the project name in the drop down menu at the top of the page.
 
-![Team page](/img/getting-started/team_page.png)
+![Team page](/guides/team-management/managing-teams/screenshots/018.png)
 
 ::: warning
 Permissions and departments are set at the **Studio Level**. You can't adjust these at the production level.
@@ -80,12 +86,18 @@ Permissions and departments are set at the **Studio Level**. You can't adjust th
 
 To remove a user from a production, go to `Production Menu > Team`, hover your cursor over the row of the corresponding user, and click the `Remove` button.
 
+![remove user from team](/guides/team-management/managing-teams/screenshots/020.png)
+
 Removing a user from a department happens in the `Main Menu > Studio > People` page. Just click on the `Edit` button for the target user and in the departments section click the department you wish to remove the person from.
 
 ## Delete Users
 
 To delete a user you must first edit their status to `Inactive` in the studio's `People` page.
 
+![edit to inactive user](/guides/team-management/managing-teams/screenshots/028.png)
+
 Then, go to the `Inactive` tab, hover your cursor over the user you wish to select, and click the `Delete` icon.
+
+![delete inactive user](/guides/team-management/managing-teams/screenshots/031.png)
 
 <!-- #endregion body -->

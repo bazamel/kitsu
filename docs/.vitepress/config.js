@@ -296,11 +296,11 @@ export default {
             collapsed: false,
             link: "/guides/production-structure/",
             items: [
-              { text: "Manage Studio Labels", link: "/guides/production-structure/manage-studios/" },
               { text: "Manage Productions", link: "/guides/production-structure/manage-productions/" },
               { text: "Manage Episodes", link: "/guides/production-structure/manage-episodes/" },
               { text: "Manage Sequences", link: "/guides/production-structure/manage-sequences/" },
               { text: "Manage Shots", link: "/guides/production-structure/manage-shots/" },
+              { text: "Manage Studio Labels", link: "/guides/production-structure/manage-studios/" },
             ],
           },
           {
