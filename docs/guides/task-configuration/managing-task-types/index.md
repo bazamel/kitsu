@@ -1,3 +1,9 @@
+---
+path: "/guides/task-configuration/managing-task-types"
+slug: "managing-task-types"
+published_at: 2026-09-10
+---
+
 # Managing Task Types
 
 <!-- #region body -->

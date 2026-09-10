@@ -1,3 +1,9 @@
+---
+path: "/guides/team-management/import-team"
+slug: "import-team"
+published_at: 2026-09-10
+---
+
 # Import Your Team
 
 <!-- #region body -->

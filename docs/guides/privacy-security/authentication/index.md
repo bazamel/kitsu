@@ -1,3 +1,9 @@
+---
+path: "/guides/privacy-security/authentication"
+slug: "authentication"
+published_at: 2026-09-10
+---
+
 # Authentication
 
 <!-- #region body -->

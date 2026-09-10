@@ -1,3 +1,9 @@
+---
+path: "/guides/production/breakdown-casting"
+slug: "breakdown-casting"
+published_at: 2026-09-10
+---
+
 # Breakdown & Casting
 
 <!-- #region body -->

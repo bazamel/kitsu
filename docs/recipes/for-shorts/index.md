@@ -1,6 +1,9 @@
 ---
+path: "/recipes/for-shorts"
+slug: "for-shorts"
 prev: false
 next: false
+published_at: 2026-09-10
 ---
 
 <script setup>

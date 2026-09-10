@@ -1,3 +1,9 @@
+---
+path: "/guides/production-structure/manage-shots"
+slug: "manage-shots"
+published_at: 2026-09-10
+---
+
 # Managing Shots
 
 <!-- #region body -->

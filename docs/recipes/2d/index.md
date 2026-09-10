@@ -1,6 +1,9 @@
 ---
+path: "/recipes/2d"
+slug: "2d"
 prev: false
 next: false
+published_at: 2026-09-10
 ---
 
 <script setup>

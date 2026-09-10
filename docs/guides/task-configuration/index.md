@@ -1,3 +1,9 @@
+---
+path: "/guides/task-configuration"
+slug: "task-configuration"
+published_at: 2026-09-10
+---
+
 # Task Configuration
 
 Kitsu's data model organizes work around a hierarchy of production entities (studio → production → episode/sequence/shot, or → asset) crossed with a task-tracking system (task type, task status, department).

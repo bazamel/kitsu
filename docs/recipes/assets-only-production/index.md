@@ -1,6 +1,9 @@
 ---
+path: "/recipes/assets-only-production"
+slug: "assets-only-production"
 prev: false
 next: false
+published_at: 2026-09-10
 ---
 
 <script setup>

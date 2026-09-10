@@ -1,3 +1,9 @@
+---
+path: "/start-here/getting-started"
+slug: "getting-started"
+published_at: 2026-09-10
+---
+
 <script setup>
 import EmbedCard from '../../.vitepress/theme/EmbedCard.vue'
 </script>

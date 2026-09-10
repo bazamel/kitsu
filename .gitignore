@@ -42,3 +42,6 @@ docs/ja/.DS_Store
 docs/.vitepress/dist
 docs/.vitepress/cache
 .wrangler
+to-translate.md
+batch_*.jsonl
+requests-*.jsonl

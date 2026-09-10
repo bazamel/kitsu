@@ -1,3 +1,9 @@
+---
+path: "/guides/tracking-reporting/budget"
+slug: "budget"
+published_at: 2026-09-10
+---
+
 # Budget
 
 <!-- #region body -->

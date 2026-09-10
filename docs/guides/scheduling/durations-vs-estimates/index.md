@@ -1,3 +1,9 @@
+---
+path: "/guides/scheduling/durations-vs-estimates"
+slug: "durations-vs-estimates"
+published_at: 2026-09-10
+---
+
 # Durations over Estimates
 
 <!-- #region body -->

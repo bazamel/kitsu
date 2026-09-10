@@ -1,3 +1,9 @@
+---
+path: "/resources/ui"
+slug: "ui"
+published_at: 2026-09-10
+---
+
 # Quick Interface Tour
 
 Now that your Kitsu instance is correctly configured, you can spend time familiarizing yourself with the user interface.

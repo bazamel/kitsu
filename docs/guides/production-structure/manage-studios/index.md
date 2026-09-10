@@ -1,3 +1,9 @@
+---
+path: "/guides/production-structure/manage-studios"
+slug: "manage-studios"
+published_at: 2026-09-10
+---
+
 # Managing Studio Labels
 
 <!-- #region body -->

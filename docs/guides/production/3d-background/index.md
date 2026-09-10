@@ -1,4 +1,6 @@
 ---
+path: "/guides/production/3d-background"
+slug: "3d-background"
 prev: false
 next: false
 ---

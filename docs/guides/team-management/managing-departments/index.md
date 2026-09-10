@@ -1,3 +1,9 @@
+---
+path: "/guides/team-management/managing-departments"
+slug: "managing-departments"
+published_at: 2026-09-10
+---
+
 # Managing Departments
 
 <!-- #region body -->

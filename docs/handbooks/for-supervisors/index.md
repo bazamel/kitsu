@@ -1,6 +1,9 @@
 ---
+path: "/handbooks/for-supervisors"
+slug: "for-supervisors"
 prev: false
 next: false
+published_at: 2026-09-10
 ---
 
 <script setup>

@@ -1,3 +1,9 @@
+---
+path: "/guides/production/manage-assets"
+slug: "manage-assets"
+published_at: 2026-09-10
+---
+
 # Managing Assets
 
 <!-- #region body -->

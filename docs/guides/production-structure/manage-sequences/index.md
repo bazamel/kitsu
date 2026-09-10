@@ -1,3 +1,9 @@
+---
+path: "/guides/production-structure/manage-sequences"
+slug: "manage-sequences"
+published_at: 2026-09-10
+---
+
 # Managing Sequences
 
 <!-- #region body -->

@@ -1,3 +1,9 @@
+---
+path: "/guides/team-management/profile-settings"
+slug: "profile-settings"
+published_at: 2026-09-10
+---
+
 # User Profile Settings
 
 <!-- #region body -->

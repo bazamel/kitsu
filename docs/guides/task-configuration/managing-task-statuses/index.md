@@ -1,3 +1,9 @@
+---
+path: "/guides/task-configuration/managing-task-statuses"
+slug: "managing-task-statuses"
+published_at: 2026-09-10
+---
+
 # Managing Task Statuses
 
 <!-- #region body -->

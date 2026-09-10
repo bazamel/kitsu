@@ -1,3 +1,9 @@
+---
+path: "/guides/tracking-reporting/thumbnails"
+slug: "thumbnails"
+published_at: 2026-09-10
+---
+
 # Thumbnails
 
 <!-- #region body -->

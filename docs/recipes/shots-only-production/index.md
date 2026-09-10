@@ -1,6 +1,9 @@
 ---
+path: "/recipes/shots-only-production"
+slug: "shots-only-production"
 prev: false
 next: false
+published_at: 2026-09-10
 ---
 
 <script setup>

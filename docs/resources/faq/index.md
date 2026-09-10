@@ -1,3 +1,9 @@
+---
+path: "/resources/faq"
+slug: "faq"
+published_at: 2026-09-10
+---
+
 # Frequently Asked Questions
 
 This FAQ guide provides quick solutions to common Kitsu issues, such as login problems, task management, and production organization. Explore the sections below for step-by-step instructions and helpful tips. For further support, check the detailed [Kitsu documentation](../configure-kitsu/) or contact support.

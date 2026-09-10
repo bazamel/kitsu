@@ -1,3 +1,9 @@
+---
+path: "/guides/scheduling"
+slug: "scheduling"
+published_at: 2026-09-10
+---
+
 # Scheduling
 
 1. [Schedules](/guides/scheduling/schedules/) - Discover the different scheduling views of Kitsu, from the studio level to the task level

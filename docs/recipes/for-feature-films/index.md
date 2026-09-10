@@ -1,6 +1,9 @@
 ---
+path: "/recipes/for-feature-films"
+slug: "for-feature-films"
 prev: false
 next: false
+published_at: 2026-09-10
 ---
 
 <script setup>

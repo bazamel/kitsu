@@ -1,3 +1,9 @@
+---
+path: "/guides/production-structure/manage-productions"
+slug: "manage-productions"
+published_at: 2026-09-10
+---
+
 # Managing Productions
 
 <!-- #region body -->

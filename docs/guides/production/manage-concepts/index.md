@@ -1,3 +1,9 @@
+---
+path: "/guides/production/manage-concepts"
+slug: "manage-concepts"
+published_at: 2026-09-10
+---
+
 # Managing Concepts
 
 <!-- #region body -->

@@ -1,3 +1,9 @@
+---
+path: "/guides/scheduling/estimates"
+slug: "estimates"
+published_at: 2026-09-10
+---
+
 # Estimates
 
 <!-- #region body -->

@@ -1,3 +1,9 @@
+---
+path: "/guides/scheduling/schedules"
+slug: "schedules"
+published_at: 2026-09-10
+---
+
 # Schedules
 
 <!-- #region body -->

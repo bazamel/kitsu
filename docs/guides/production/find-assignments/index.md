@@ -1,3 +1,9 @@
+---
+path: "/guides/production/find-assignments"
+slug: "find-assignments"
+published_at: 2026-09-10
+---
+
 # Managing Your Assignments
 
 <!-- #region body -->

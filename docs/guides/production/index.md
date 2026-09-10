@@ -1,3 +1,9 @@
+---
+path: "/guides/production"
+slug: "production"
+published_at: 2026-09-10
+---
+
 # Production
 
 1. [Manage Concepts](/guides/production/manage-concepts/) - Learn how to create, organize, and validate concept art for your production.

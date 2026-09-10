@@ -1,3 +1,9 @@
+---
+path: "/guides/privacy-security"
+slug: "privacy-security"
+published_at: 2026-09-10
+---
+
 # Privacy & Security
 
 1. [Authentication](/guides/privacy-security/authentication/) - Manage how users sign in to Kitsu, including password policies and Two-Factor Authentication (TOTP, Email OTP, or a FIDO security key).

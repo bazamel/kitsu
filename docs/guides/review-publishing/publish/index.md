@@ -1,3 +1,9 @@
+---
+path: "/guides/review-publishing/publish"
+slug: "publish"
+published_at: 2026-09-10
+---
+
 # Publishing
 
 <!-- #region body -->

@@ -1,3 +1,9 @@
+---
+path: "/guides/review-publishing"
+slug: "review-publishing"
+published_at: 2026-09-10
+---
+
 # Review & Publishing
 
 1. [Update Task Progress](/guides/review-publishing/update-task-progress/) - How to change statuses and keep your team updated on the progress of work.

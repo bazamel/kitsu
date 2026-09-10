@@ -1,3 +1,9 @@
+---
+path: "/guides/production/assign-tasks"
+slug: "assign-tasks"
+published_at: 2026-09-10
+---
+
 # Task Assignments
 
 <!-- #region body -->

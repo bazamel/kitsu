@@ -1,3 +1,9 @@
+---
+path: "/guides/production/managing-asset-types"
+slug: "managing-asset-types"
+published_at: 2026-09-10
+---
+
 # Managing Asset Types
 
 <!-- #region body -->

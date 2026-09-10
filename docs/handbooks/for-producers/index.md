@@ -1,6 +1,9 @@
 ---
+path: "/handbooks/for-producers"
+slug: "for-producers"
 prev: false
 next: false
+published_at: 2026-09-10
 ---
 
 <script setup>

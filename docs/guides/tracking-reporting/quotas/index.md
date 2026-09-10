@@ -1,3 +1,9 @@
+---
+path: "/guides/tracking-reporting/quotas"
+slug: "quotas"
+published_at: 2026-09-10
+---
+
 # Quotas
 
 <!-- #region body -->

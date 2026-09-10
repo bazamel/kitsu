@@ -1,3 +1,9 @@
+---
+path: "/guides/review-publishing/playlist"
+slug: "playlist"
+published_at: 2026-09-10
+---
+
 # Playlists
 
 <!-- #region body -->

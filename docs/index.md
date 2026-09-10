@@ -1,10 +1,13 @@
 ---
+path: "/"
+slug: ""
 prev:
   text: ''
   link: ''
 next:
   text: 'Getting Started'
   link: '/start-here/getting-started'
+published_at: 2026-09-10
 ---
 
 <style>

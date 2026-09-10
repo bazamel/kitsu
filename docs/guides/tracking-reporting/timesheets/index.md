@@ -1,3 +1,9 @@
+---
+path: "/guides/tracking-reporting/timesheets"
+slug: "timesheets"
+published_at: 2026-09-10
+---
+
 # Team Timesheets
 
 <!-- #region body -->

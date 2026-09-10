@@ -1,3 +1,9 @@
+---
+path: "/guides/privacy-security/logs"
+slug: "logs"
+published_at: 2026-09-10
+---
+
 # Log Pages
 
 <!-- #region body -->

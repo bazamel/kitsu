@@ -1,3 +1,9 @@
+---
+path: "/guides/team-management"
+slug: "team-management"
+published_at: 2026-09-10
+---
+
 # Team Management
 
 1. [Managing Departments](/guides/team-management/managing-departments/) - Discover methods for effectively managing and overseeing your team.

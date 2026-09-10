@@ -1,3 +1,9 @@
+---
+path: "/guides/tracking-reporting/understand-why-late-task"
+slug: "understand-why-late-task"
+published_at: 2026-09-10
+---
+
 # Understanding Why a Task is Late
 
 <!-- #region body -->

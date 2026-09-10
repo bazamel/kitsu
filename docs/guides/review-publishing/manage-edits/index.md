@@ -1,3 +1,9 @@
+---
+path: "/guides/review-publishing/manage-edits"
+slug: "manage-edits"
+published_at: 2026-09-10
+---
+
 # Managing Edits
 
 <!-- #region body -->

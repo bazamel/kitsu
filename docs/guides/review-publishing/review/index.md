@@ -1,3 +1,9 @@
+---
+path: "/guides/review-publishing/review"
+slug: "review"
+published_at: 2026-09-10
+---
+
 # Reviews
 
 <!-- #region body -->

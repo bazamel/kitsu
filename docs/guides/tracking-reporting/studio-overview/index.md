@@ -1,3 +1,9 @@
+---
+path: "/guides/tracking-reporting/studio-overview"
+slug: "studio-overview"
+published_at: 2026-09-10
+---
+
 # Studio Resource Overview
 
 <!-- #region body -->

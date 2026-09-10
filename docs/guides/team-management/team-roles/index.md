@@ -1,3 +1,9 @@
+---
+path: "/guides/team-management/team-roles"
+slug: "team-roles"
+published_at: 2026-09-10
+---
+
 # User Permission Roles
 
 <!-- #region body -->

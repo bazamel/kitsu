@@ -1,3 +1,9 @@
+---
+path: "/guides/team-management/managing-teams"
+slug: "managing-teams"
+published_at: 2026-09-10
+---
+
 # Managing Teams
 
 <!-- #region body -->

@@ -1,3 +1,9 @@
+---
+path: "/guides/production-structure/manage-episodes"
+slug: "manage-episodes"
+published_at: 2026-09-10
+---
+
 # Managing Episodes
 
 <!-- #region body -->

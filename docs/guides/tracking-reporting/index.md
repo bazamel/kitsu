@@ -1,3 +1,9 @@
+---
+path: "/guides/tracking-reporting"
+slug: "tracking-reporting"
+published_at: 2026-09-10
+---
+
 # Tracking & Reporting
 
 1. [Ensure Tasks are On-Time](/guides/tracking-reporting/ensure-tasks-on-time/) - Keep production on schedule by monitoring task progress and deadlines

@@ -1,3 +1,9 @@
+---
+path: "/guides/review-publishing/update-task-progress"
+slug: "update-task-progress"
+published_at: 2026-09-10
+---
+
 # Updating Task Progress
 
 <!-- #region body -->

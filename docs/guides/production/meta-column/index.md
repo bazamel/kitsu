@@ -1,3 +1,9 @@
+---
+path: "/guides/production/meta-column"
+slug: "meta-column"
+published_at: 2026-09-10
+---
+
 # Meta Columns
 
 <!-- #region body -->

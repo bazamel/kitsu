@@ -1,3 +1,9 @@
+---
+path: "/guides/tracking-reporting/ensure-tasks-on-time"
+slug: "ensure-tasks-on-time"
+published_at: 2026-09-10
+---
+
 # Ensure Tasks are On Time
 
 <!-- #region body -->

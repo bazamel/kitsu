@@ -1,6 +1,9 @@
 ---
+path: "/handbooks/for-clients"
+slug: "for-clients"
 prev: false
 next: false
+published_at: 2026-09-10
 ---
 
 <script setup>
