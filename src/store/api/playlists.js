@@ -1,7 +1,7 @@
 import client from '@/store/api/client'
 
 export default {
-  getPlaylists(production, episode, taskTypeId, sortBy, page) {
+  getPlaylists(production, episode, taskTypeId, sortBy, page, forEntity) {
     let path = `/api/data/projects/${production.id}`
     if (episode) {
       path += `/episodes/${episode.id}/playlists?sort_by=${sortBy}&page=${page}`
@@ -10,6 +10,9 @@ export default {
     }
     if (taskTypeId?.length) {
       path += `&task_type_id=${taskTypeId}`
+    }
+    if (forEntity) {
+      path += `&for_entity=${forEntity}`
     }
     return client.pget(path)
   },
@@ -22,6 +25,14 @@ export default {
   getEntityPreviewFiles(entity) {
     const path = `/api/data/playlists/entities/${entity.id}/preview-files`
     return client.pget(path)
+  },
+
+  addEntitiesToPlaylist(playlist, entityIds) {
+    // Send (entity, preview) couples. No preview_file_id: the server resolves
+    // each entity's latest preview for the playlist task type.
+    return client.ppost(`/api/actions/playlists/${playlist.id}/add-entities`, {
+      entities: entityIds.map(entityId => ({ entity_id: entityId }))
+    })
   },
 
   getPreviewFile(previewFileId) {
@@ -96,6 +107,13 @@ export default {
     let path = `/api/data/projects/${production.id}/playlists/temp`
     if (sort) path += '?sort=true'
     return client.ppost(path, { task_ids: taskIds })
+  },
+
+  // one entry per entity, on the task holding its current preview
+  loadTempPlaylistFromEntities(production, entityIds, sort) {
+    let path = `/api/data/projects/${production.id}/playlists/temp`
+    if (sort) path += '?sort=true'
+    return client.ppost(path, { entity_ids: entityIds })
   },
 
   notifyClients(playlist, studioId, departmentId) {

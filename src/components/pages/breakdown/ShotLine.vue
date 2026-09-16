@@ -7,7 +7,10 @@
       stdby: entity ? entity.is_casting_standby : false,
       'text-mode': textMode
     }"
+    role="button"
+    tabindex="0"
     @click="onClicked($event)"
+    @keydown.enter.prevent="onClicked($event)"
   >
     <div
       class="flexrow-item sticky"
@@ -250,7 +253,7 @@
       >
         <div class="flexrow-item mb05">
           {{ nbAssetsForType(assetType) }}
-          {{ $tc('assets.number', nbAssetsForType(assetType)) }}
+          {{ $t('assets.number', { count: nbAssetsForType(assetType) }) }}
         </div>
         <div class="asset-type-items flexrow-item">
           <asset-block
@@ -361,14 +364,16 @@ export default {
   computed: {
     ...mapGetters([
       'assetMap',
-      'isCurrentUserManager',
-      'isCurrentUserSupervisor',
       'isFrameIn',
       'isFrameOut',
       'isFrames',
       'isShowInfosBreakdown',
       'user'
     ]),
+    ...mapGetters({
+      isCurrentUserManager: 'isCurrentUserProductionManager',
+      isCurrentUserSupervisor: 'isCurrentUserProductionSupervisor'
+    }),
 
     chunks() {
       const chunks = this.name.split(' / ')

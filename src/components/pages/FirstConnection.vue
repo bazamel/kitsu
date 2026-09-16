@@ -3,8 +3,12 @@
     <div class="container has-text-centered">
       <div class="box has-text-left">
         <div class="has-text-centered login-header">
-          <img src="../../assets/kitsu-text-dark.svg" v-if="isDarkTheme" />
-          <img src="../../assets/kitsu-text.svg" v-else />
+          <img
+            src="../../assets/kitsu-text-dark.svg"
+            alt="Kitsu"
+            v-if="isDarkTheme"
+          />
+          <img src="../../assets/kitsu-text.svg" alt="Kitsu" v-else />
         </div>
 
         <div class="has-text-centered">
@@ -41,7 +45,11 @@
             :class="{
               'is-loading': isLoading
             }"
+            role="button"
+            tabindex="0"
             @click="confirmResetPassword"
+            @keydown.enter.prevent="confirmResetPassword"
+            @keydown.space.prevent="confirmResetPassword"
             v-if="!isSuccess"
           >
             {{ $t('login.reset_password') }}
@@ -65,63 +73,59 @@
   </div>
 </template>
 
-<script>
-import { mapActions, mapGetters } from 'vuex'
-
+<script setup>
+import { useHead } from '@unhead/vue'
 import { MailIcon } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useStore } from 'vuex'
 
-export default {
-  name: 'first-connection',
+// Composables
+// --------------------------------------------------------------------------
 
-  components: {
-    MailIcon
-  },
+const { t } = useI18n()
+const store = useStore()
 
-  data() {
-    return {
-      email: '',
-      isLoading: false,
-      isError: false,
-      isSuccess: false
-    }
-  },
+// State
+// --------------------------------------------------------------------------
 
-  mounted() {
-    this.email = this.$store.state.login.email
-    this.isLoading = false
-    this.isSuccess = false
-  },
+const email = ref('')
+const isError = ref(false)
+const isLoading = ref(false)
+const isSuccess = ref(false)
 
-  computed: {
-    ...mapGetters(['isDarkTheme'])
-  },
+// Computed
+// --------------------------------------------------------------------------
 
-  methods: {
-    ...mapActions(['resetPassword']),
+const isDarkTheme = computed(() => store.getters.isDarkTheme)
 
-    confirmResetPassword() {
-      this.isLoading = true
-      this.isError = false
-      this.isSuccess = false
-      this.resetPassword(this.email)
-        .then(() => {
-          this.isLoading = false
-          this.isSuccess = true
-        })
-        .catch(() => {
-          this.isLoading = false
-          this.isError = true
-          this.isSuccess = false
-        })
-    }
-  },
+// Functions
+// --------------------------------------------------------------------------
 
-  head() {
-    return {
-      title: this.$t('login.first_connection_title')
-    }
+const confirmResetPassword = async () => {
+  isLoading.value = true
+  isError.value = false
+  isSuccess.value = false
+  try {
+    await store.dispatch('resetPassword', email.value)
+    isSuccess.value = true
+  } catch {
+    isError.value = true
   }
+  isLoading.value = false
 }
+
+// Lifecycle
+// --------------------------------------------------------------------------
+
+onMounted(() => {
+  email.value = store.state.login.email
+})
+
+// Head
+// --------------------------------------------------------------------------
+
+useHead({ title: computed(() => t('login.first_connection_title')) })
 </script>
 
 <style lang="scss" scoped>

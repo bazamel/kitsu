@@ -16,6 +16,7 @@
           :entities="currentEntities"
           :is-loading="isLoading"
           :temp-mode="true"
+          :can-save="isSaveAllowed"
           :current-entity-type="currentEntityType"
           @save-clicked="onSaveClicked"
           @annotation-changed="onAnnotationChanged"
@@ -72,7 +73,12 @@ const store = useStore()
 const props = defineProps({
   active: { type: Boolean, default: false },
   sort: { type: Boolean, default: false },
-  taskIds: { type: Array, default: null }
+  taskIds: { type: Array, default: null },
+  // one entry per entity instead of one per task
+  entityIds: { type: Array, default: null },
+  // the entities' type when it is not the one of the current page, as for
+  // the assets cast in a shot
+  entityType: { type: String, default: null }
 })
 
 const emit = defineEmits(['cancel'])
@@ -108,6 +114,11 @@ const currentTaskIds = computed(
 
 const isPlaylistPage = computed(() => route.path.indexOf('playlist') > 0)
 
+// Saving turns the temporary playlist into a playlist of currentProduction,
+// so it requires a production context in the route. Cross-production views
+// like My Checks can mix tasks from several productions: no save there.
+const isSaveAllowed = computed(() => Boolean(route.params.production_id))
+
 const successText = computed(() =>
   createdPlaylist.value
     ? t('playlists.created', { name: createdPlaylist.value.name })
@@ -115,10 +126,12 @@ const successText = computed(() =>
 )
 
 const currentEntityType = computed(() => {
-  if (route.path.indexOf('asset') > 0) return 'asset'
-  if (route.path.indexOf('sequence') > 0) return 'sequence'
-  if (route.path.indexOf('edit') > 0) return 'edit'
-  if (route.path.indexOf('episode') > 0) return 'episode'
+  if (props.entityType) return props.entityType
+  if (route.path.includes('asset')) return 'asset'
+  if (route.path.includes('shot')) return 'shot'
+  if (route.path.includes('sequence')) return 'sequence'
+  if (route.path.includes('edit')) return 'edit'
+  if (route.path.includes('episode')) return 'episode'
   return 'shot'
 })
 
@@ -272,13 +285,19 @@ const onViewCreatedPlaylist = () => {
   if (!createdPlaylist.value) return
   modals.value.edit = false
   emit('cancel')
-  router.push(
-    getPlaylistPath(
-      currentProduction.value.id,
-      currentEpisode.value?.id,
-      createdPlaylist.value.id
-    )
+  const route = getPlaylistPath(
+    currentProduction.value.id,
+    currentEpisode.value?.id,
+    createdPlaylist.value.id
   )
+  if (
+    currentEpisode.value?.id === 'all' &&
+    currentEntityType.value === 'shot'
+  ) {
+    // The playlists page splits the all pseudo-episode by entity type.
+    route.query = { for_entity: 'shot' }
+  }
+  router.push(route)
 }
 
 const savePlaylist = async form => {
@@ -333,11 +352,16 @@ watch(
       createdPlaylist.value = null
       modals.value.edit = false
       isLoading.value = true
-      store
-        .dispatch('loadTempPlaylist', {
-          taskIds: currentTaskIds.value,
-          sort: props.sort
-        })
+      const load = props.entityIds
+        ? store.dispatch('loadTempPlaylistFromEntities', {
+            entityIds: props.entityIds,
+            sort: props.sort
+          })
+        : store.dispatch('loadTempPlaylist', {
+            taskIds: currentTaskIds.value,
+            sort: props.sort
+          })
+      load
         .then(entities => {
           currentPlaylist.value.for_entity = currentEntityType.value
           setupEntities(entities)
@@ -349,7 +373,8 @@ watch(
       playlistPlayer.value?.clearCanvas()
       currentEntities.value = []
     }
-  }
+  },
+  { immediate: true }
 )
 </script>
 

@@ -101,17 +101,9 @@ const props = defineProps({
     default: 0,
     type: Number
   },
-  isFullMode: {
-    default: false,
-    type: Boolean
-  },
   isFullScreen: {
     default: false,
     type: Boolean
-  },
-  movieDimensions: {
-    default: () => ({}),
-    type: Object
   },
   nbFrames: {
     default: 0,
@@ -128,10 +120,6 @@ const props = defineProps({
   playlistShotPosition: {
     default: () => ({}),
     type: Object
-  },
-  previewId: {
-    default: '',
-    type: String
   },
   urlPrefix: {
     default: null,
@@ -268,9 +256,9 @@ const ensureTileGeometry = (id, tilePathUrl) => {
   if (tileGeometries.value.has(id)) return tileGeometries.value.get(id)
   tileGeometries.value.set(id, null)
   getTileGeometry(tilePathUrl).then(geometry => {
-    if (!geometry) return
+    // false marks a movie without a sprite, null one still loading.
     const next = new Map(tileGeometries.value)
-    next.set(id, geometry)
+    next.set(id, geometry || false)
     tileGeometries.value = next
   })
   return null
@@ -296,16 +284,19 @@ const getFrameBackgroundStyle = frame => {
   frame = frame - props.playlistShotPosition[frame].start * props.fps
   const base = props.urlPrefix || '/api'
 
+  const thumbnailStyle = {
+    background: `url(${base}/pictures/thumbnails/preview-files/${id}.png)`,
+    'background-position': '0 0',
+    width: '150px'
+  }
   if (extension === 'png') {
-    const tp = `${base}/pictures/thumbnails/preview-files/${id}.png`
-    return {
-      background: `url(${tp})`,
-      'background-position': '0 0',
-      width: '150px'
-    }
+    return thumbnailStyle
   } else if (extension === 'mp4') {
     const tp = `${base}/movies/tiles/preview-files/${id}.png`
     const geometry = ensureTileGeometry(id, tp)
+    // No sprite for this movie: its thumbnail, rather than a background
+    // URL the browser would request again at every hover.
+    if (geometry === false) return thumbnailStyle
     const frameWidth =
       geometry?.cellWidth ?? Math.ceil(TILE_CELL_HEIGHT * (pw / ph))
     const cellCount = geometry?.cellCount ?? 3840
@@ -324,27 +315,35 @@ const getFrameBackgroundStyle = frame => {
   }
 }
 
+// The strip renders only from the frame accounting frozen by
+// resetPlaylistFrameData (PlaylistPlayer), so segments tile by construction.
+// Deriving widths from live preview fields (duration, nb_frames, current
+// fps) drifts from the frozen positions and opens holes in the strip.
+const totalFrames = computed(() =>
+  props.entityList.reduce(
+    (max, entity) =>
+      Math.max(
+        max,
+        (entity.playlist_start_frame || 0) + (entity.playlist_nb_frames || 0)
+      ),
+    0
+  )
+)
+
 const getEntityPosition = entity => {
-  const ratio =
-    (entity.start_duration - props.frameDuration) / props.playlistDuration
-  return ratio * 100
+  if (!totalFrames.value) return 0
+  return ((entity.playlist_start_frame || 0) / totalFrames.value) * 100
 }
 
 const getEntityWidth = entity => {
-  let ratio
-  if (entity.preview_file_extension === 'mp4') {
-    ratio = entity.preview_file_duration / props.playlistDuration
-  } else if (entity.preview_nb_frames) {
-    const duration = entity.preview_nb_frames * props.frameDuration
-    ratio = duration / props.playlistDuration
-  } else {
-    ratio = (2 * props.fps * props.frameDuration) / props.playlistDuration
-  }
-  return ratio * 100
+  if (!totalFrames.value) return 0
+  return ((entity.playlist_nb_frames || 0) / totalFrames.value) * 100
 }
 
 const getEntityColor = entity => {
-  return entity.task_status_color
+  // Neutral grey for entities without a status color (no preview / no
+  // task): a transparent segment reads as a hole in the strip.
+  return entity.task_status_color || '#62656b'
 }
 
 const getFullEntityName = entity => {

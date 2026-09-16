@@ -74,7 +74,7 @@ const actions = {
 const mutations = {
   [LOAD_HARDWARE_ITEMS_END](state, hardwareItems) {
     state.hardwareItems = sortByName(hardwareItems)
-    cache.hardwareItemMap = new Map()
+    cache.hardwareItemMap.clear()
     state.hardwareItems.forEach(hardwareItem => {
       cache.hardwareItemMap.set(hardwareItem.id, hardwareItem)
     })
@@ -104,6 +104,7 @@ const mutations = {
 
   [RESET_ALL](state) {
     Object.assign(state, { ...initialState })
+    cache.hardwareItemMap.clear()
   }
 }
 

@@ -24,14 +24,14 @@
               v-if="currentEpisode && currentEpisode.description"
             />
             <div class="filler"></div>
-            <div class="flexrow flexrow-item" v-if="!isCurrentUserClient">
+            <div class="flexrow flexrow-item">
               <combobox-department
                 class="combobox-department flexrow-item"
                 :selectable-departments="selectableDepartments('Shot')"
                 :display-all-and-my-departments="true"
                 rounded
                 v-model="selectedDepartment"
-                v-if="departments.length > 0"
+                v-if="departments.length > 0 && !isCurrentUserClient"
               />
               <combobox-display-options
                 class="flexrow-item"
@@ -58,6 +58,7 @@
                 :title="$t('main.edl.import_file')"
                 icon="import-edl"
                 @click="showEDLImportModal"
+                v-if="!isAllEpisodes"
               />
               <button-simple
                 class="flexrow-item"
@@ -73,9 +74,10 @@
               />
               <button-simple
                 class="flexrow-item"
-                :text="$t('shots.manage')"
+                :text="$t('shots.new_shots')"
                 icon="plus"
                 @click="showManageShots"
+                v-if="!isAllEpisodes"
               />
             </div>
           </div>
@@ -86,6 +88,7 @@
               :is-group-enabled="true"
               :queries="shotSearchQueries"
               type="shot"
+              :production-id="currentProduction?.id"
               @remove-search="removeSearchQuery"
               v-if="!isShotsLoading && !initialLoading"
             />
@@ -243,13 +246,15 @@
       :active="modals.isCreateTasksDisplayed"
       :is-loading="loading.creatingTasks"
       :is-loading-stay="loading.creatingTasksStay"
+      :is-loading-all="loading.creatingAllTasks"
       :is-error="errors.creatingTasks"
       :title="$t('tasks.create_tasks_shot')"
-      :text="$t('tasks.create_tasks_shot_explaination')"
+      :text="$t('tasks.create_tasks_shot_explanation')"
       :error-text="$t('tasks.create_tasks_shot_failed')"
       @cancel="hideCreateTasksModal"
       @confirm="confirmCreateTasks"
       @confirm-and-stay="confirmCreateTasksAndStay"
+      @confirm-all-missing="confirmCreateAllMissingTasks"
     />
 
     <add-metadata-modal
@@ -372,6 +377,7 @@ export default {
       displaySettings: {
         bigThumbnails: false,
         contactSheetMode: false,
+        fullTaskTypeNames: false,
         inOutTimecode: false,
         showAssignations: true,
         showInfos: true
@@ -421,6 +427,7 @@ export default {
         addThumbnails: false,
         creatingTasks: false,
         creatingTasksStay: false,
+        creatingAllTasks: false,
         deleteAllTasks: false,
         deleteMetadata: false,
         edit: false,
@@ -453,7 +460,7 @@ export default {
     const finalize = () => {
       this.$nextTick(() => {
         // Needed to be sure the current production is set
-        this.loadShots(() => {
+        this.loadShots().then(() => {
           this.initialLoading = false
         })
       })
@@ -502,7 +509,6 @@ export default {
       'episodes',
       'departments',
       'isCurrentUserClient',
-      'isCurrentUserManager',
       'isFrames',
       'isFrameIn',
       'isFrameOut',
@@ -526,6 +532,7 @@ export default {
       'shotSearchQueries',
       'shotSearchText',
       'shotSearchFilterGroups',
+      'shotsLoadingKey',
       'shotsPath',
       'shotValidationColumns',
       'shotListScrollPosition',
@@ -534,6 +541,13 @@ export default {
       'taskTypeMap',
       'user'
     ]),
+    ...mapGetters({
+      isCurrentUserManager: 'isCurrentUserProductionManager'
+    }),
+
+    isAllEpisodes() {
+      return this.isTVShow && this.currentEpisode?.id === 'all'
+    },
 
     shotMap() {
       return shotStore.cache.shotMap
@@ -545,6 +559,7 @@ export default {
       this.productionShotTaskTypes.forEach(item => {
         collection.push(item.name)
         collection.push(`${item.name} comment`)
+        collection.push(`${item.name} assignations`)
       })
 
       return collection
@@ -557,15 +572,18 @@ export default {
     },
 
     filteredShots() {
+      // Build the lookup from the full shot cache, not the filtered display
+      // list, so the import creation check sees every shot.
+      // The cache Map is not reactive: depend on displayedShots (updated
+      // by the same mutations) to invalidate this computed.
+      this.displayedShots // eslint-disable-line no-unused-expressions
       const shots = {}
-      this.displayedShotsBySequence.forEach(sequence => {
-        sequence.forEach(item => {
-          let shotKey = `${item.sequence_name}${item.name}`
-          if (this.isTVShow) {
-            shotKey = item.episode_name + shotKey
-          }
-          shots[shotKey] = true
-        })
+      this.shotMap.forEach(item => {
+        let shotKey = `${item.sequence_name}${item.name}`
+        if (this.isTVShow) {
+          shotKey = item.episode_name + shotKey
+        }
+        shots[shotKey] = true
       })
       return shots
     },
@@ -622,17 +640,22 @@ export default {
     },
 
     reloadEpisodeShotsIfNeeded() {
-      if (
-        ((this.isTVShow && this.displayedSequences.length === 0) ||
-          this.displayedSequences[0]?.episode_id !== this.currentEpisode?.id ||
-          this.displayedShots[0]?.episode_id !== this.currentEpisode?.id) &&
-        !this.isShotsLoading &&
-        !this.initialLoading
-      ) {
+      // The first rows say nothing about the loaded scope: a production-wide
+      // All dataset passes the per-episode checks whenever the first episode
+      // owns the first rows. Compare the scope of the last load first.
+      const scope = this.isTVShow ? (this.currentEpisode?.id ?? '') : ''
+      const isStale =
+        this.shotsLoadingKey !== `${this.currentProduction?.id}/${scope}` ||
+        (!this.isAllEpisodes &&
+          ((this.isTVShow && this.displayedSequences.length === 0) ||
+            this.displayedSequences[0]?.episode_id !==
+              this.currentEpisode?.id ||
+            this.displayedShots[0]?.episode_id !== this.currentEpisode?.id))
+      if (isStale && !this.isShotsLoading && !this.initialLoading) {
         this.$refs['shot-search-field']?.setValue('')
         this.$store.commit('SET_SHOT_LIST_SCROLL_POSITION', 0)
         this.initialLoading = true
-        this.loadShots(() => {
+        this.loadShots().then(() => {
           this.initialLoading = false
           this.applySearchFromUrl()
         })
@@ -715,8 +738,7 @@ export default {
 
     reset() {
       this.initialLoading = true
-      this.loadShots(err => {
-        if (err) console.error(err)
+      this.loadShots().then(() => {
         this.initialLoading = false
       })
     },
@@ -828,7 +850,13 @@ export default {
           this.$t('shots.title')
         ]
         if (this.currentEpisode) {
-          nameData.splice(3, 0, this.currentEpisode.name)
+          nameData.splice(
+            3,
+            0,
+            this.isAllEpisodes
+              ? this.$t('main.all_shots')
+              : this.currentEpisode.name
+          )
         }
         const name = stringHelpers.slugify(nameData.join('_'))
         const headers = [
@@ -869,8 +897,11 @@ export default {
           headers.push(this.$t('shots.fields.max_retakes'))
         }
         this.shotValidationColumns.forEach(taskTypeId => {
-          headers.push(this.taskTypeMap.get(taskTypeId).name)
-          headers.push('Assignations')
+          const taskTypeName = this.taskTypeMap.get(taskTypeId)?.name || ''
+          headers.push(taskTypeName)
+          // Qualified by the task type so a re-import can tell the columns
+          // apart: bare duplicated headers collapse in the server's reader.
+          headers.push(`${taskTypeName} assignations`)
         })
         csv.buildCsvFile(name, [headers].concat(shotLines))
       })
@@ -950,7 +981,11 @@ export default {
         await this.setNbFramesFromTaskTypePreviews({
           taskTypeId,
           productionId: this.currentProduction.id,
-          episodeId: this.currentEpisode ? this.currentEpisode.id : null
+          // Whole production in All mode: zou rejects episode_id=all here.
+          episodeId:
+            this.currentEpisode && !this.isAllEpisodes
+              ? this.currentEpisode.id
+              : null
         })
         this.modals.isSetFramesDisplayed = false
       } catch (err) {
@@ -975,13 +1010,12 @@ export default {
 
     currentProduction() {
       this.setOptionalImportColumns()
-      if (!this.initialLoading) {
-        this.$refs['shot-search-field']?.setValue('')
-        this.$store.commit('SET_SHOT_LIST_SCROLL_POSITION', 0)
-
-        if (this.currentProduction && !this.isTVShow) {
-          this.loadShots()
-        }
+      this.$refs['shot-search-field']?.setValue('')
+      this.$store.commit('SET_SHOT_LIST_SCROLL_POSITION', 0)
+      // Even during the first load: the switch dropped its response. A TV
+      // show reloads from the episode watcher instead.
+      if (this.currentProduction && !this.isTVShow) {
+        this.loadShots()
       }
     },
 
@@ -1021,7 +1055,11 @@ export default {
       return {
         title:
           `${this.currentProduction?.name || ''}` +
-          ` - ${this.currentEpisode?.name || ''}` +
+          ` - ${
+            this.isAllEpisodes
+              ? this.$t('main.all_shots')
+              : this.currentEpisode?.name || ''
+          }` +
           ` | ${this.$t('shots.title')} - Kitsu`
       }
     }
@@ -1047,10 +1085,6 @@ export default {
 }
 
 .level {
-  align-items: flex-start;
-}
-
-.flexcolumn {
   align-items: flex-start;
 }
 

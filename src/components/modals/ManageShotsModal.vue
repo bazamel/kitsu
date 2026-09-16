@@ -9,19 +9,8 @@
 
     <div class="modal-content">
       <div class="box">
-        <page-title class="title" :text="$t('shots.manage')" />
-        <div class="explanation">{{ $t('shots.creation_explanation') }}</div>
-        <div>
-          <div class="flexrow">
-            <combobox
-              :label="$t('shots.padding')"
-              :options="shotPaddingOptions"
-              class="shot-padding flexrow-item"
-              v-model="shotPadding"
-            />
-          </div>
-        </div>
-
+        <page-title class="title" :text="$t('shots.new_shots')" />
+        <div class="mt1 mb1">{{ $t('shots.creation_explanation') }}</div>
         <div class="shot-columns">
           <div class="shot-column" v-if="isTVShow">
             <h2 class="subtitle">{{ $t('shots.episodes') }}</h2>
@@ -33,7 +22,11 @@
                   selected: episode.id === selectedEpisodeId
                 }"
                 :key="episode.id"
+                role="button"
+                tabindex="0"
                 @click="selectEpisode(episode.id)"
+                @keydown.enter.prevent="selectEpisode(episode.id)"
+                @keydown.space.prevent="selectEpisode(episode.id)"
                 v-for="episode in displayedEpisodes"
               >
                 {{ episode.name }}
@@ -73,8 +66,12 @@
                   selected: sequence.id === selectedSequenceId
                 }"
                 :key="sequence.id"
+                role="button"
+                tabindex="0"
                 @keyup.tab="focusAddShot"
                 @click="selectSequence(sequence.id)"
+                @keydown.enter.prevent="selectSequence(sequence.id)"
+                @keydown.space.prevent="selectSequence(sequence.id)"
                 v-for="sequence in displayedSequences"
               >
                 {{ sequence.name }}
@@ -105,38 +102,123 @@
 
           <div class="shot-column">
             <h2 class="subtitle">{{ $t('shots.title') }}</h2>
-            <div class="list">
-              <div
-                class="entity-line"
-                :key="shot.id"
-                v-for="shot in displayedShots"
-              >
-                {{ shot.name }}
-              </div>
-            </div>
-            <div class="field">
-              <input
-                class="input"
-                :placeholder="$t('shots.fields.placeholder')"
-                ref="addShotInput"
-                type="text"
-                @keyup.enter="addShot"
-                v-model="names.shot"
-              />
-            </div>
-            <div class="field">
+
+            <div class="shot-tabs mb1">
               <button
-                :class="{
-                  button: true,
-                  'is-success': true,
-                  'is-loading': loading.addShot
-                }"
-                :disabled="!isAddShotAllowed || loading.addShot"
-                @click="addShot"
+                :class="['tab-button', { active: shotMode === 'single' }]"
+                @click="shotMode = 'single'"
               >
-                {{ $t('main.add') }}
+                {{ $t('shots.single_tab') }}
+              </button>
+              <button
+                :class="['tab-button', { active: shotMode === 'bulk' }]"
+                @click="shotMode = 'bulk'"
+              >
+                {{ $t('shots.bulk_tab') }}
               </button>
             </div>
+
+            <template v-if="shotMode === 'single'">
+              <combobox
+                class="shot-step mb1"
+                :label="$t('shots.numbering_step')"
+                is-inline
+                :options="shotStepOptions"
+                :with-margin="false"
+                v-model="shotStep"
+              />
+              <div class="list">
+                <div
+                  class="entity-line"
+                  :key="shot.id"
+                  v-for="shot in displayedShots"
+                >
+                  {{ shot.name }}
+                </div>
+              </div>
+
+              <div class="field">
+                <input
+                  class="input"
+                  :placeholder="$t('shots.fields.placeholder')"
+                  ref="addShotInput"
+                  type="text"
+                  @keyup.enter="addShot"
+                  v-model="names.shot"
+                />
+              </div>
+              <div class="field">
+                <button
+                  :class="{
+                    button: true,
+                    'is-success': true,
+                    'is-loading': loading.addShot
+                  }"
+                  :disabled="!isAddShotAllowed || loading.addShot"
+                  @click="addShot"
+                >
+                  {{ $t('main.add') }}
+                </button>
+              </div>
+            </template>
+
+            <template v-else>
+              <div class="bulk-fields">
+                <text-field
+                  input-class=" is-small"
+                  :label="$t('shots.fields.start')"
+                  :placeholder="$t('shots.fields.placeholder')"
+                  :errored="bulkStartError"
+                  :error-text="$t('shots.bulk_invalid_start')"
+                  v-model="bulk.start"
+                />
+                <text-field
+                  input-class=" is-small"
+                  type="number"
+                  :label="$t('shots.fields.count')"
+                  :min="1"
+                  :max="500"
+                  :step="1"
+                  v-model="bulk.count"
+                />
+                <text-field
+                  input-class=" is-small"
+                  type="number"
+                  :label="$t('shots.fields.step')"
+                  :min="1"
+                  :step="1"
+                  v-model="bulk.step"
+                />
+                <p v-if="bulkError" class="error">
+                  {{ $t('shots.bulk_error') }}
+                </p>
+              </div>
+              <div class="list bulk-list">
+                <div
+                  v-for="name in bulkPreviewNames"
+                  :key="name"
+                  :class="[
+                    'entity-line',
+                    { collision: isBulkNameCollision(name) }
+                  ]"
+                >
+                  {{ name }}
+                </div>
+              </div>
+              <div class="field">
+                <button
+                  :class="{
+                    button: true,
+                    'is-success': true,
+                    'is-loading': loading.bulkGenerate
+                  }"
+                  :disabled="!isBulkGenerateAllowed"
+                  @click="generateShots"
+                >
+                  {{ $t('shots.bulk_generate') }}
+                </button>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -162,6 +244,7 @@ import shotStore from '@/store/modules/shots'
 
 import Combobox from '@/components/widgets/Combobox.vue'
 import PageTitle from '@/components/widgets/PageTitle.vue'
+import TextField from '@/components/widgets/TextField.vue'
 
 const router = useRouter()
 const store = useStore()
@@ -174,7 +257,7 @@ const emit = defineEmits(['add-episode', 'add-sequence', 'add-shot', 'cancel'])
 
 useModal(toRef(props, 'active'), emit)
 
-const shotPaddingOptions = [
+const shotStepOptions = [
   { label: '1', value: '1' },
   { label: '2', value: '2' },
   { label: '10', value: '10' }
@@ -188,13 +271,17 @@ const names = reactive({ episode: '', sequence: '', shot: '' })
 const loading = reactive({
   addEpisode: false,
   addSequence: false,
-  addShot: false
+  addShot: false,
+  bulkGenerate: false
 })
 const sequences = ref([])
 const displayedShots = ref([])
 const selectedEpisodeId = ref(null)
 const selectedSequenceId = ref(null)
-const shotPadding = ref('1')
+const shotStep = ref('1')
+const shotMode = ref('single')
+const bulk = reactive({ start: '', count: 20, step: 10 })
+const bulkError = ref(false)
 
 const currentProduction = computed(() => store.getters.currentProduction)
 const displayedEpisodes = computed(() => store.getters.displayedEpisodes)
@@ -217,6 +304,34 @@ const isAddSequenceAllowed = computed(() => {
   )
   return !exists && (selectedEpisodeId.value || !isTVShow.value)
 })
+
+const bulkStartError = computed(
+  () => bulk.start.length > 0 && !/\d+$/.test(bulk.start)
+)
+
+const bulkPreviewNames = computed(() => {
+  if (
+    !bulk.start ||
+    bulkStartError.value ||
+    !Number.isInteger(bulk.count) ||
+    !Number.isInteger(bulk.step) ||
+    bulk.count < 1 ||
+    bulk.step < 1
+  ) {
+    return []
+  }
+  return stringHelpers.generateBulkShotNames(bulk.start, bulk.count, bulk.step)
+})
+
+const isBulkGenerateAllowed = computed(
+  () =>
+    !bulkStartError.value &&
+    bulkPreviewNames.value.length > 0 &&
+    !!selectedSequenceId.value &&
+    (!isTVShow.value || !!selectedEpisodeId.value) &&
+    !bulkPreviewNames.value.some(name => isBulkNameCollision(name)) &&
+    !loading.bulkGenerate
+)
 
 const isAddShotAllowed = computed(() => {
   if (!names.shot) return false
@@ -251,6 +366,36 @@ const selectEpisode = episodeId => {
         episode_id: episodeId
       }
     })
+  }
+}
+
+const isBulkNameCollision = name =>
+  !!displayedShots.value.find(shot => shot.name === name)
+
+const generateShots = async () => {
+  if (!isBulkGenerateAllowed.value) return
+  loading.bulkGenerate = true
+  bulkError.value = false
+  const sequence = displayedSequences.value.find(
+    s => s.id === selectedSequenceId.value
+  )
+  const episode = isTVShow.value
+    ? displayedEpisodes.value.find(e => e.id === selectedEpisodeId.value)
+    : null
+  try {
+    await store.dispatch('bulkCreateShots', {
+      shotNames: bulkPreviewNames.value,
+      sequenceName: sequence?.name,
+      episodeName: episode?.name ?? null
+    })
+    await store.dispatch('loadShots')
+    selectSequence(selectedSequenceId.value)
+    bulk.start = ''
+  } catch (err) {
+    console.error(err)
+    bulkError.value = true
+  } finally {
+    loading.bulkGenerate = false
   }
 }
 
@@ -297,7 +442,7 @@ const addShot = () => {
     selectSequence(selectedSequenceId.value)
     names.shot = stringHelpers.generateNextName(
       created.name,
-      parseInt(shotPadding.value)
+      parseInt(shotStep.value)
     )
   })
 }
@@ -306,10 +451,12 @@ watch(
   () => props.active,
   active => {
     if (!active) return
-    shotPadding.value = '1'
+    shotStep.value = '1'
     sequences.value = displayedSequences.value
     if (isTVShow.value) {
-      selectEpisode(displayedEpisodes.value[0].id)
+      if (displayedEpisodes.value.length > 0) {
+        selectEpisode(displayedEpisodes.value[0].id)
+      }
     } else if (sequences.value.length > 0) {
       selectSequence(sequences.value[0].id)
     }
@@ -342,7 +489,6 @@ defineExpose({ focusAddSequence, focusAddShot })
 
 .shot-columns {
   display: flex;
-  height: 300px;
 }
 
 .shot-column {
@@ -402,15 +548,55 @@ input::placeholder {
   color: #bbb;
 }
 
-.explanation {
-  margin-bottom: 1em;
-}
-
 .subtitle {
   margin-bottom: 0;
 }
 
-.shot-padding {
+.shot-step {
   margin-right: 1em;
+}
+
+.shot-tabs {
+  display: flex;
+  margin-top: 4px;
+  margin-right: 10px;
+}
+
+.tab-button {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  padding: 4px 0;
+
+  &.active {
+    background: var(--background-selected);
+  }
+
+  &:first-child {
+    border-radius: 10px 0 0 10px;
+  }
+
+  &:last-child {
+    border-radius: 0 10px 10px 0;
+    border-left: 0;
+  }
+}
+
+.bulk-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bulk-list.list {
+  margin-top: 1em;
+  max-height: 200px;
+}
+
+.entity-line.collision {
+  color: $red;
+  text-decoration: line-through;
 }
 </style>

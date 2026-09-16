@@ -4,27 +4,49 @@
       class="combo"
       :class="{
         open: showList,
-        reversed: isReversed,
+        reversed: isReversed || openUp,
         thin
       }"
       ref="select"
     >
-      <div class="flexrow" :title="title" @click="toggleList()">
+      <div
+        class="flexrow"
+        :title="title"
+        role="combobox"
+        tabindex="0"
+        aria-haspopup="listbox"
+        :aria-expanded="showList"
+        :aria-activedescendant="
+          activeIndex > -1 ? optionId(activeIndex) : undefined
+        "
+        @click="toggleList()"
+        @keydown="onKeydown"
+      >
         <div class="selected-line mr05 ellipsis nowrap">
           {{ title }}
         </div>
         <chevron-down-icon class="down-icon flexrow-item" />
       </div>
-      <div ref="list" class="select-input" v-if="showList">
+      <div
+        ref="list"
+        class="select-input"
+        :class="{ 'align-right': alignRight }"
+        role="listbox"
+        aria-multiselectable="true"
+        v-if="showList"
+      >
         <div
+          :id="optionId(index)"
           :key="option.value"
           class="option-line flexrow"
+          role="option"
+          :aria-selected="!!modelValue[option.value]"
           @click="onUpdateValue(option.value)"
-          v-for="option in optionList"
+          v-for="(option, index) in optionList"
         >
           <toggle-button
             :label="option.label"
-            :model-value="modelValue[option.value]"
+            :model-value="!!modelValue[option.value]"
           />
         </div>
       </div>
@@ -43,7 +65,11 @@
 import { ref, computed, nextTick } from 'vue'
 import { ChevronDownIcon } from 'lucide-vue-next'
 
+import { useComboboxKeyboard } from '@/composables/comboboxKeyboard'
+
 import ToggleButton from '@/components/widgets/ToggleButton.vue'
+
+const MAX_VISIBLE_OPTIONS = 7
 
 const emit = defineEmits(['change', 'update:model-value'])
 
@@ -74,6 +100,8 @@ const lastScrollPosition = ref(0)
 const list = ref(null)
 const showList = ref(false)
 const select = ref(null)
+const alignRight = ref(false)
+const openUp = ref(false)
 
 const optionList = computed(() => {
   return props.isReversed ? props.options.slice().reverse() : props.options
@@ -85,7 +113,18 @@ const toggleList = () => {
   }
   showList.value = !showList.value
   if (showList.value) {
+    // Reset before measuring: a list already flipped always fits.
+    alignRight.value = false
+    openUp.value = false
     nextTick(() => {
+      // Measured after the first default-position paint: the list size is
+      // only known once its options are rendered.
+      const rect = list.value?.getBoundingClientRect()
+      alignRight.value = !!rect && rect.right > window.innerWidth
+      if (rect && rect.bottom > window.innerHeight) {
+        const comboTop = select.value.getBoundingClientRect().top
+        openUp.value = comboTop >= rect.height
+      }
       const top =
         lastScrollPosition.value ||
         (props.isReversed && list.value?.scrollHeight) ||
@@ -103,6 +142,14 @@ const onUpdateValue = key => {
   })
   emit('change', { key, value })
 }
+
+const { activeIndex, onKeydown, optionId } = useComboboxKeyboard({
+  isOpen: showList,
+  toggle: toggleList,
+  optionsLength: () => optionList.value.length,
+  onSelect: index => onUpdateValue(optionList.value[index].value),
+  listRef: list
+})
 </script>
 
 <style lang="scss" scoped>
@@ -173,7 +220,8 @@ const onUpdateValue = key => {
   border-top-right-radius: 1em;
   left: 0;
   margin-left: -1px;
-  max-height: 270px;
+  // Each row: 0.8em padding × 2 + 1.5em line-height + 1px border
+  max-height: calc(v-bind(MAX_VISIBLE_OPTIONS) * (3.1em + 1px) + 2px);
   overflow-x: hidden;
   overflow-y: auto;
   position: absolute;
@@ -184,6 +232,15 @@ const onUpdateValue = key => {
   .option-line {
     padding-right: 0.4em;
     white-space: nowrap;
+  }
+
+  &.align-right {
+    border-top-left-radius: 1em;
+    border-top-right-radius: 0;
+    left: auto;
+    margin-left: 0;
+    margin-right: -1px;
+    right: 0;
   }
 }
 
@@ -214,8 +271,12 @@ const onUpdateValue = key => {
     border-top-right-radius: 1em;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
-    height: 180px;
-    top: -180px;
+    bottom: 100%;
+    top: auto;
+
+    &.align-right {
+      border-bottom-left-radius: 1em;
+    }
   }
 }
 </style>

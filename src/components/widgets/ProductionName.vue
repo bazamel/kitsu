@@ -15,6 +15,7 @@
       <template v-if="!production.has_avatar">{{ avatar }}</template>
       <img
         :src="thumbnailPath"
+        :alt="onlyAvatar ? production.name : ''"
         :style="{
           width: `${size}px`,
           height: `${size}px`
@@ -87,12 +88,6 @@ const thumbnailPath = computed(() => {
 
   .dark & {
     color: $white;
-  }
-}
-
-@media screen and (max-width: 768px) {
-  .avatar-name {
-    display: none;
   }
 }
 </style>

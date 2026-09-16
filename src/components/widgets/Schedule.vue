@@ -29,7 +29,7 @@
             </button>
           </div>
           <span class="total-value" v-if="!hideManDays">
-            {{ formatDuration(totalManDays) }} {{ $t('schedule.md') }}
+            {{ formatDuration(totalManDays) }} {{ durationUnit }}
           </span>
         </div>
 
@@ -58,7 +58,11 @@
                   color: isDarkTheme ? '#EEE' : '#999',
                   'margin-top': '4px'
                 }"
+                role="button"
+                tabindex="0"
                 @click="expandRootElement(rootElement)"
+                @keydown.enter.prevent="expandRootElement(rootElement)"
+                @keydown.space.prevent="expandRootElement(rootElement)"
               >
                 <chevron-right-icon v-if="!rootElement.expanded" />
                 <chevron-down-icon v-else />
@@ -103,7 +107,7 @@
                 :to="rootElement.route"
                 v-if="rootElement.route"
               >
-                <link-icon :size="12" v-if="rootElement.route" />
+                <link-icon :size="12" />
               </router-link>
               <input
                 class="man-day-input flexrow-item mr1"
@@ -128,7 +132,7 @@
                   !rootElement.avatar && rootElement.editable && !hideManDays
                 "
               >
-                {{ $t('schedule.md') }}
+                {{ durationUnit }}
               </span>
               <span
                 class="man-days-unit flexrow-item"
@@ -137,7 +141,7 @@
                 "
               >
                 {{ formatDuration(rootElement.man_days) }}
-                {{ $t('schedule.md') }}
+                {{ durationUnit }}
               </span>
             </div>
 
@@ -229,11 +233,11 @@
                         "
                         :value="formatDuration(childElement.man_days, false)"
                       />
-                      {{ $t('schedule.md') }}
+                      {{ durationUnit }}
                     </span>
                     <span class="man-days-unit flexrow-item" v-else>
                       {{ formatDuration(childElement.man_days) }}
-                      {{ $t('schedule.md') }}
+                      {{ durationUnit }}
                     </span>
                   </div>
                 </div>
@@ -265,7 +269,15 @@
           >
             <div
               class="milestone pointer"
+              role="button"
+              tabindex="0"
               @click="showEditMilestoneModal(day, currentMilestones[day.text])"
+              @keydown.enter.prevent="
+                showEditMilestoneModal(day, currentMilestones[day.text])
+              "
+              @keydown.space.prevent="
+                showEditMilestoneModal(day, currentMilestones[day.text])
+              "
               v-if="currentMilestones[day.text] && withMilestones"
             >
               <div class="milestone-tooltip">
@@ -279,7 +291,8 @@
 
             <div
               :class="{
-                'with-milestones': withMilestones && isCurrentUserManager,
+                'with-milestones':
+                  withMilestones && isCurrentUserProductionManager,
                 'date-widget': true
               }"
             >
@@ -305,10 +318,18 @@
               <div
                 class="add-milestone"
                 :title="addMilestoneTitle(day)"
+                role="button"
+                tabindex="0"
                 @click="
                   showEditMilestoneModal(day, currentMilestones[day.text])
                 "
-                v-if="withMilestones && isCurrentUserManager"
+                @keydown.enter.prevent="
+                  showEditMilestoneModal(day, currentMilestones[day.text])
+                "
+                @keydown.space.prevent="
+                  showEditMilestoneModal(day, currentMilestones[day.text])
+                "
+                v-if="withMilestones && isCurrentUserProductionManager"
               >
                 <span class="button">
                   <edit-icon :size="10" v-if="currentMilestones[day.text]" />
@@ -361,6 +382,7 @@
         <div
           ref="timelineContentWrapperRef"
           class="timeline-content-wrapper"
+          @mousemove.passive="onPositionBarMove"
           @scroll.passive="onTimelineScroll"
         >
           <div
@@ -419,13 +441,17 @@
                 :key="`dayoff-${dayOff.id}-${index}`"
                 :style="dayOffStyle(dayOff)"
                 :title="dayOff.description"
-                v-for="(dayOff, index) in getDayOffRange(rootElement.daysOff)"
+                v-for="(dayOff, index) in cachedDayOffRange(
+                  rootElement.daysOff
+                )"
               >
                 <briefcase-icon class="day-off-icon" :size="14" />
               </div>
               <div
                 class="entity-line root-element"
                 :style="entityLineStyle(rootElement, true)"
+                @dragenter="onRootDragEnter($event, rootElement)"
+                @dragleave="onRootDragLeave($event, rootElement)"
                 v-show="!hideRoot"
               >
                 <div
@@ -433,13 +459,18 @@
                   :class="{
                     thinner: multiline
                   }"
-                  :title="`${rootElement.name} (${rootElement.startDate?.format('YYYY-MM-DD')} - ${rootElement.endDate?.format('YYYY-MM-DD')})`"
+                  :title="`${rootElement.name} (${displayDate(rootElement.startDate)} - ${displayDate(rootElement.endDate)})`"
                   :style="timebarStyle(rootElement, true)"
                 >
                   <div
                     class="timebar"
                     v-show="isVisible(rootElement)"
-                    @click="$emit('root-element-selected', rootElement)"
+                    role="button"
+                    tabindex="0"
+                    @click="onRootBarClick(rootElement)"
+                    @keydown.enter.prevent="
+                      $emit('root-element-selected', rootElement)
+                    "
                     v-if="rootElement.editable"
                   >
                     <div
@@ -462,7 +493,7 @@
               </div>
 
               <div
-                class="children"
+                class="children children-loading"
                 :style="childrenStyle(rootElement, multiline)"
                 v-if="rootElement.expanded && rootElement.loading"
               >
@@ -478,7 +509,7 @@
                 :style="childrenStyle(rootElement, multiline)"
                 v-else-if="rootElement.expanded"
                 @dragenter="onTaskDragEnter($event, rootElement)"
-                @dragover="onTaskDragOver"
+                @dragover="onTaskDragOver($event, rootElement)"
                 @dragleave="onTaskDragLeave"
                 @drop="onTaskDrop($event, rootElement)"
               >
@@ -487,6 +518,38 @@
                   v-if="invertLinesColor"
                 >
                   <!-- to invert odd/event line color -->
+                </div>
+                <template
+                  v-if="
+                    dropTarget.rootElementId === rootElement.id &&
+                    !dropTarget.forbidden
+                  "
+                >
+                  <div
+                    class="drop-ghost"
+                    :key="`drop-ghost-${segment.id}`"
+                    :style="{
+                      left: `${segment.left}px`,
+                      width: `${segment.width}px`,
+                      '--timebar-color': segment.color || undefined
+                    }"
+                    v-for="segment in dropTarget.segments"
+                  ></div>
+                </template>
+                <div
+                  class="drop-forbidden"
+                  v-if="
+                    dropTarget.rootElementId === rootElement.id &&
+                    dropTarget.forbidden
+                  "
+                >
+                  <span
+                    class="drop-forbidden-message"
+                    :style="{ left: `${dropTarget.messageLeft + 16}px` }"
+                  >
+                    <ban-icon :size="14" />
+                    {{ $t(`schedule.drop_forbidden_${dropTarget.forbidden}`) }}
+                  </span>
                 </div>
                 <div
                   class="entity-line child-line"
@@ -555,17 +618,18 @@
                           withEstimations
                         )
                       "
-                      :title="`${formatDuration(timesheet.duration)} ${isDurationInHours ? $tc('main.hours_spent', formatDuration(timesheet.duration, false)) : $tc('main.days_spent', formatDuration(timesheet.duration, false))}`"
+                      :title="`${formatDuration(timesheet.duration)} ${isDurationInHours ? $t('main.hours_spent', { count: formatDuration(timesheet.duration, false) }) : $t('main.days_spent', { count: formatDuration(timesheet.duration, false) })}`"
                       :key="timesheet.id"
-                      v-for="timesheet in rootElement.timesheet.filter(
-                        ({ task_id }) => task_id === childElement.id
+                      v-for="timesheet in taskTimesheets(
+                        rootElement,
+                        childElement.id
                       )"
                     ></div>
                   </template>
 
                   <div
                     class="timebar timebar-ghost timebar-ghost-before"
-                    :title="`${childElement.previousElement.name} (${childElement.previousElement.startDate.format('YYYY-MM-DD')} - ${childElement.previousElement.endDate.format('YYYY-MM-DD')})`"
+                    :title="`${childElement.previousElement.name} (${displayDate(childElement.previousElement.startDate)} - ${displayDate(childElement.previousElement.endDate)})`"
                     :class="{
                       'with-timesheets': withTimesheets
                     }"
@@ -582,7 +646,7 @@
 
                   <div
                     class="timebar timebar-ghost timebar-ghost-after"
-                    :title="`${childElement.nextElement.name} (${childElement.nextElement.startDate.format('YYYY-MM-DD')} - ${childElement.nextElement.endDate.format('YYYY-MM-DD')})`"
+                    :title="`${childElement.nextElement.name} (${displayDate(childElement.nextElement.startDate)} - ${displayDate(childElement.nextElement.endDate)})`"
                     :class="{
                       'with-timesheets': withTimesheets
                     }"
@@ -605,7 +669,7 @@
                       'with-timesheets': withTimesheets,
                       invalid: isOverlapping(childElement)
                     }"
-                    :title="`${multiline && childElement.project_name ? `${childElement.project_name} - ` : ''}${childElement.name} (${childElement.startDate.format('YYYY-MM-DD')} - ${childElement.endDate.format('YYYY-MM-DD')})`"
+                    :title="`${multiline && childElement.project_name ? `${childElement.project_name} - ` : ''}${childElement.name} (${displayDate(childElement.startDate)} - ${displayDate(childElement.endDate)})`"
                     :style="
                       timebarChildStyle(
                         childElement,
@@ -616,7 +680,12 @@
                       )
                     "
                     v-show="subchildren || isVisible(childElement)"
-                    @click="$emit('item-selected', rootElement, childElement)"
+                    role="button"
+                    tabindex="0"
+                    @click="onChildBarClick(rootElement, childElement)"
+                    @keydown.enter.prevent="
+                      $emit('item-selected', rootElement, childElement)
+                    "
                     v-if="withEstimations"
                   >
                     <div
@@ -682,7 +751,7 @@
                         :key="`dayoff-${dayOff.id}-${index}`"
                         :style="dayOffStyle(dayOff)"
                         :title="dayOff.description"
-                        v-for="(dayOff, index) in getDayOffRange(
+                        v-for="(dayOff, index) in cachedDayOffRange(
                           rootElement.people[personId].daysOff
                         )"
                       >
@@ -710,9 +779,14 @@
                         ></div>
                         <div
                           class="timebar-center ellipsis"
+                          role="button"
+                          tabindex="0"
                           @mousedown="moveTimebar(task, $event)"
                           @touchstart="moveTimebar(task, $event)"
                           @click="
+                            onTaskBarClick(rootElement, childElement, task)
+                          "
+                          @keydown.enter.prevent="
                             $emit(
                               'task-selected',
                               rootElement,
@@ -776,6 +850,7 @@ import {
 import { useI18n } from 'vue-i18n'
 import { useStore } from 'vuex'
 import {
+  BanIcon,
   BriefcaseIcon,
   ChevronDownIcon,
   ChevronRightIcon,
@@ -790,6 +865,7 @@ import colors from '@/lib/colors'
 import {
   addBusinessDays,
   daysToMinutes,
+  formatDisplayDate,
   formatFullDate,
   getBusinessDays,
   getDayOffRange,
@@ -807,9 +883,19 @@ const store = useStore()
 const { t } = useI18n()
 
 const props = defineProps({
+  clipChildren: {
+    type: Boolean,
+    default: false
+  },
   daysOff: {
     type: Array,
     default: () => []
+  },
+  // page rule (item, person) => reason of the refusal or null, asked after
+  // the team check and shown through schedule.drop_forbidden_<reason>
+  assignRule: {
+    type: Function,
+    default: null
   },
   draggedItems: {
     type: Array,
@@ -818,10 +904,6 @@ const props = defineProps({
   endDate: {
     type: Object,
     required: true
-  },
-  isError: {
-    type: Boolean,
-    default: false
   },
   isLoading: {
     type: Boolean,
@@ -935,8 +1017,13 @@ const timelinePositionRef = ref(null)
 
 // Store getters
 const currentProduction = computed(() => store.getters.currentProduction)
+const dateFormat = computed(() => store.getters.dateFormat)
 const departmentMap = computed(() => store.getters.departmentMap)
-const isCurrentUserManager = computed(() => store.getters.isCurrentUserManager)
+
+const displayDate = date => formatDisplayDate(date, dateFormat.value)
+const isCurrentUserProductionManager = computed(
+  () => store.getters.isCurrentUserProductionManager
+)
 const isDarkTheme = computed(() => store.getters.isDarkTheme)
 const milestones = computed(() => store.getters.milestones)
 const openProductions = computed(() => store.getters.openProductions)
@@ -948,6 +1035,10 @@ const taskStatuses = computed(() => store.getters.taskStatuses)
 const isDurationInHours = computed(() => {
   return organisation.value.format_duration_in_hours
 })
+
+const durationUnit = computed(() =>
+  isDurationInHours.value ? t('schedule.hours') : t('schedule.md')
+)
 
 const formatDuration = (minutes, toLocale = true) => {
   if (!minutes) {
@@ -1033,8 +1124,45 @@ let initialClientX = null
 let initialClientY = null
 let lastStartDate = null
 let lastEndDate = null
+// person row the drag started on: a multi-assignee task renders one bar per
+// assignee, so assignees[0] is not necessarily the person being reassigned
+let dragSourcePersonId = null
+// person row each dragged bar last hopped to during the drag: once the bar
+// left its source row, the source id is gone from assignees and only this
+// map knows which row the next hop must unassign
+const dragPersonByItem = new Map()
+
+// a native click still fires on mouseup after a genuine drag (mousedown and
+// mouseup landed on the same bar), so an unguarded click handler would
+// re-select/expand the row right after every move. stopBrowsing sets this
+// once it detects the pointer actually moved; the next click consumes it.
+let justDragged = false
+
+// cached wrapper rect: getBoundingClientRect on every mousemove forces a
+// layout; invalidated on resize and zoom via resetScheduleSize
+let wrapperRect = null
+
+// spring-loading: hovering a collapsed person while dragging a task
+// expands the row after a short delay, so its drop zone appears under
+// the drag
+let expandHoverTimer = null
+let expandHoverRootId = null
+
+// external tasks hovering a person row: drives the drop-preview ghost
+// bars (allowed, one segment per dragged task) or the crossed-out
+// overlay (forbidden)
+const dropTarget = reactive({
+  forbidden: null,
+  messageLeft: 0,
+  rootElementId: null,
+  segments: []
+})
+let positionBarFrame = null
+let moveFrame = null
+let lastMoveEvent = null
 
 let domEvents = []
+let moveEvents = []
 
 // Computed
 
@@ -1065,10 +1193,12 @@ const daysAvailable = computed(() => {
   const days = []
   let day = props.startDate.clone().utc().startOf('day')
   const endDate = props.endDate.clone().utc().startOf('day')
-  const daysOff = getDayOffRange(props.daysOff).map(dayOff => dayOff.date)
+  const daysOff = new Set(
+    getDayOffRange(props.daysOff).map(dayOff => dayOff.date)
+  )
 
   while (day.isSameOrBefore(endDate)) {
-    day.off = daysOff.includes(day.toISOString().slice(0, 10))
+    day.off = daysOff.has(day.toISOString().slice(0, 10))
     day.newWeek = day.isoWeekday() === 1
     day.newMonth = day.date() === 1
     day.weekend = [6, 7].includes(day.isoWeekday())
@@ -1096,44 +1226,27 @@ const daysAvailable = computed(() => {
 })
 
 const weeksAvailable = computed(() => {
-  const weeks = []
   if (daysAvailable.value.length < 1) return []
   const startDate = daysAvailable.value[0]
   const endDate = daysAvailable.value[daysAvailable.value.length - 1]
-  const day = startDate.clone().add(-1, 'days')
-  let dayDate = day.toDate()
-  const endDayDate = endDate.clone().add(7, 'days').toDate()
-  dayDate.weekday = day.isoWeekday()
-  dayDate.monthday = day.month()
-  dayDate.week = day.week()
+  const lastDay = endDate.clone().add(7, 'days')
 
-  while (dayDate < endDayDate) {
-    const nextDay = new Date(Number(dayDate))
-    nextDay.setDate(dayDate.getDate() + 1) // Add 1 day
-    if (nextDay.isoweekday > 7) {
-      nextDay.isoweekday = 1
-      nextDay.newWeek = true
-    }
-    nextDay.monthday = dayDate.monthday + 1
-    if (nextDay.getMonth() !== dayDate.getMonth()) {
-      nextDay.newMonth = true
-      nextDay.monthday = 1
-    }
-    const momentDay = parseDate(moment(nextDay).format('YYYY-MM-DD'))
-    if (momentDay.isoWeekday() === 1) {
-      momentDay.weekText = momentDay.format('YYYY-MM-DD')
-      momentDay.label = `${momentDay.weekText} to ${momentDay
-        .clone()
-        .add(6, 'days')
-        .format('YYYY-MM-DD')}`
-      momentDay.weekNumber = momentDay.week()
-      momentDay.newMonth =
-        weeks.length === 0 ||
-        momentDay.month() !== weeks[weeks.length - 1].month()
-      momentDay.monthText = momentDay.format('MMMM YY')
-      weeks.push(momentDay)
-    }
-    dayDate = nextDay
+  const weeks = []
+  // first Monday on or after the schedule start
+  const monday = startDate.clone().add((8 - startDate.isoWeekday()) % 7, 'days')
+  while (monday.isSameOrBefore(lastDay)) {
+    const week = monday.clone()
+    week.weekText = week.format('YYYY-MM-DD')
+    week.label = `${week.weekText} to ${week
+      .clone()
+      .add(6, 'days')
+      .format('YYYY-MM-DD')}`
+    week.weekNumber = week.week()
+    week.newMonth =
+      weeks.length === 0 || week.month() !== weeks[weeks.length - 1].month()
+    week.monthText = week.format('MMMM YY')
+    weeks.push(week)
+    monday.add(7, 'days')
   }
   return weeks
 })
@@ -1231,14 +1344,6 @@ const unitOfTime = computed(() => {
 
 // Methods
 
-const getNbSubChildren = children => {
-  if (!children) return 0
-
-  return Object.values(children).reduce((acc, subChildren) => {
-    return acc + subChildren.length
-  }, 0)
-}
-
 const getNbLines = (items = []) => {
   const values = items.map(item => item.line || 0)
   return values.length ? Math.max(...values) + 1 : 1
@@ -1250,6 +1355,19 @@ const refreshAllItemPositions = () => {
       refreshItemPositions(rootElement)
     }
   })
+}
+
+// Drag-time variant: the collision relayout walks every child of the
+// section (moment clones + line scan) and re-renders the moved bars, which
+// stalls fast drags on large sections. During a drag a ~100ms cadence is
+// enough for live feedback; the drop (stopBrowsing) still runs the exact
+// relayout on every moved item.
+let lastDragRelayoutAt = 0
+const refreshItemPositionsDuringDrag = rootElements => {
+  const now = performance.now()
+  if (now - lastDragRelayoutAt < 100) return
+  lastDragRelayoutAt = now
+  rootElements.forEach(refreshItemPositions)
 }
 
 const refreshItemPositions = rootElement => {
@@ -1292,6 +1410,7 @@ const isVisible = timeElement => {
 }
 
 const resetScheduleSize = () => {
+  wrapperRect = null
   if (timelineContentRef.value) {
     if (props.zoomLevel > 0) {
       timelineContentRef.value.style.width = `${displayedDays.value.length * cellWidth.value}px`
@@ -1301,7 +1420,7 @@ const resetScheduleSize = () => {
   }
 }
 
-const onMouseMove = event => {
+const processMouseMove = event => {
   if (isChangeStartDate.value) {
     changeStartDate(event)
   } else if (isChangeEndDate.value) {
@@ -1312,8 +1431,27 @@ const onMouseMove = event => {
     if (isBrowsingX.value) scrollScheduleLeft(event)
     if (isBrowsingY.value) scrollScheduleTop(event)
   }
+}
 
-  updatePositionBarPosition(event)
+// high-frequency mice fire several mousemove events per frame: process only
+// the latest one per animation frame
+const onMouseMove = event => {
+  lastMoveEvent = event
+  if (moveFrame) return
+  moveFrame = requestAnimationFrame(() => {
+    moveFrame = null
+    processMouseMove(lastMoveEvent)
+  })
+}
+
+// document-level move listeners are attached only for the duration of a drag
+// or browse: a permanent listener ran on every mousemove of the whole page
+const startMoveTracking = () => {
+  // a new interaction begins: drop any drag-click flag left armed by a
+  // drag whose trailing click never fired (release off the bar, touch
+  // drags), otherwise it would swallow this interaction's genuine click
+  justDragged = false
+  addEvents(moveEvents)
 }
 
 const onChildEstimationChanged = (event, childElement, rootElement) => {
@@ -1342,18 +1480,26 @@ const onChildEstimationChanged = (event, childElement, rootElement) => {
 const updatePositionBarPosition = event => {
   if (!timelineContentWrapperRef.value || !timelinePositionRef.value) return
 
-  const cursorX =
-    getClientX(event) -
-    timelineContentWrapperRef.value.getBoundingClientRect().left
+  if (!wrapperRect) {
+    wrapperRect = timelineContentWrapperRef.value.getBoundingClientRect()
+  }
+  const cursorX = getClientX(event) - wrapperRect.left
 
-  if (cursorX <= 0 || cursorX >= timelineContentWrapperRef.value.offsetWidth)
-    return
+  if (cursorX <= 0 || cursorX >= wrapperRect.width) return
 
   const left =
     Math.floor(
       (timelineContentWrapperRef.value.scrollLeft + cursorX) / cellWidth.value
     ) * cellWidth.value
   timelinePositionRef.value.style.left = `${left}px`
+}
+
+const onPositionBarMove = event => {
+  if (positionBarFrame) return
+  positionBarFrame = requestAnimationFrame(() => {
+    positionBarFrame = null
+    updatePositionBarPosition(event)
+  })
 }
 
 const isValidItemDates = (startDate, endDate) => {
@@ -1367,14 +1513,28 @@ const isValidItemDates = (startDate, endDate) => {
   )
 }
 
+// dates outside the displayed range (e.g. a task due after the production
+// end) resolve to the nearest boundary instead of undefined, which made the
+// drag computations crash or silently no-op
 const getDisplayedDaysIndex = date => {
-  const dateString = date.format('YYYY-MM-DD')
-  return displayedDaysIndex.value[dateString]
+  const index = displayedDaysIndex.value[date.format('YYYY-MM-DD')]
+  if (index !== undefined) {
+    return index
+  }
+  return date.isBefore(props.startDate) ? 0 : displayedDays.value.length - 1
 }
 
 const getDisplayedWeeksIndex = date => {
-  const dateString = date.startOf('isoweek').format('YYYY-MM-DD')
-  return displayedWeeksIndex.value[dateString]
+  // clone before startOf: moment mutates in place and callers pass the
+  // items' own dates, which snapped them back to their week's Monday
+  const monday = date.clone().startOf('isoweek')
+  const index = displayedWeeksIndex.value[monday.format('YYYY-MM-DD')]
+  if (index !== undefined) {
+    return index
+  }
+  return monday.isBefore(weeksAvailable.value[0])
+    ? 0
+    : weeksAvailable.value.length - 1
 }
 
 const resetDroppableTargets = () => {
@@ -1418,17 +1578,25 @@ const changeDates = event => {
 
       target.classList.add('droppable')
 
+      const newAssigneeId = target.dataset.personId
       selection.value.forEach(item => {
-        // update item assignation in element hierarchy
-        const previousAssigneeId = item.assignees[0]
-        const newAssigneeId = target.dataset.personId
-        item.assignees = item.assignees.filter(
-          assigneeId => assigneeId !== previousAssigneeId
-        )
-        item.assignees.push(newAssigneeId)
+        // multi-selection: an item already on the hovered row would get the
+        // assignee id and its bar duplicated
+        if (item.assignees.includes(newAssigneeId)) return
+        // unassign the row the bar currently sits on: past the first hop the
+        // source person is gone from assignees, and the assignees[0]
+        // fallback would unassign an untouched co-assignee
+        const previousAssigneeId =
+          dragPersonByItem.get(item) ??
+          (dragSourcePersonId && item.assignees.includes(dragSourcePersonId)
+            ? dragSourcePersonId
+            : item.assignees[0])
 
+        // the handlers own the assignees and person-line updates: mutating
+        // them here too duplicated the new assignee id
         emit('item-unassign', item, previousAssigneeId)
         emit('item-assign', item, newAssigneeId)
+        dragPersonByItem.set(item, newAssigneeId)
         refreshItemPositions(currentRootElement)
       })
     } else if (
@@ -1463,6 +1631,20 @@ const changeDates = event => {
     }
   }
 
+  // a bar whose real dates lie outside the displayed range has no exact
+  // index: the boundary-resolved index math would compute the move against
+  // the window edge and teleport the bar there on the first tick, then the
+  // drop would persist the reset dates. Keep such bars unmovable (their
+  // dates must be fixed from the task panel first).
+  if (
+    !isValidItemDates(
+      currentElement.value.startDate,
+      currentElement.value.endDate
+    )
+  ) {
+    return
+  }
+
   if (lastStartDate.isBefore(props.startDate)) {
     lastStartDate = props.startDate.clone()
   }
@@ -1492,11 +1674,14 @@ const changeDates = event => {
           item.startDate = item.startDate.clone().add(dateDiffVal)
           item.endDate = item.endDate.clone().add(dateDiffVal)
         })
+        selection.value.forEach(item => {
+          propagateClipToChildren(item)
+        })
         if (props.multiline || props.subchildren) {
           const parentElements = [
             ...new Set(selection.value.map(item => item.parentElement))
           ]
-          parentElements.forEach(refreshItemPositions)
+          refreshItemPositionsDuringDrag(parentElements)
         }
       }
     }
@@ -1511,8 +1696,10 @@ const changeDates = event => {
     if (newStartDate) {
       const newEndDate = weeksAvailable.value[currentIndex + length]
       if (isValidItemDates(newStartDate, newEndDate)) {
-        currentElement.value.startDate = newStartDate
-        currentElement.value.endDate = newEndDate
+        // clone: assigning the weeksAvailable moments directly aliases the
+        // header entries with the item dates
+        currentElement.value.startDate = newStartDate.clone()
+        currentElement.value.endDate = newEndDate.clone()
       }
     }
   }
@@ -1541,12 +1728,14 @@ const changeStartDate = event => {
     : displayedDays.value[currentIndex]
 
   if (
+    newStartDate &&
     !newStartDate.isSame(currentElement.value.startDate) &&
     isValidItemDates(newStartDate, currentElement.value.endDate)
   ) {
     currentElement.value.startDate = newStartDate.clone()
     updateItemEstimation(currentElement.value)
-    refreshItemPositions(currentElement.value.parentElement)
+    propagateClipToChildren(currentElement.value)
+    refreshItemPositionsDuringDrag([currentElement.value.parentElement])
     resetSelection([currentElement.value])
   }
 }
@@ -1581,12 +1770,12 @@ const changeEndDate = event => {
   currentIndex += dayChange - 1
   if (currentIndex < startDateIndex) currentIndex = startDateIndex
   if (isWeekMode.value) {
-    if (currentIndex > displayedWeeksIndex.value.length) {
-      currentIndex = displayedWeeksIndex.value.length - 1
+    if (currentIndex > weeksAvailable.value.length - 1) {
+      currentIndex = weeksAvailable.value.length - 1
     }
   } else {
-    if (currentIndex > displayedDaysIndex.value.length) {
-      currentIndex = displayedDaysIndex.value.length - 1
+    if (currentIndex > displayedDays.value.length - 1) {
+      currentIndex = displayedDays.value.length - 1
     }
   }
 
@@ -1600,9 +1789,62 @@ const changeEndDate = event => {
   ) {
     currentElement.value.endDate = newEndDate.clone()
     updateItemEstimation(currentElement.value)
-    refreshItemPositions(currentElement.value.parentElement)
+    propagateClipToChildren(currentElement.value)
+    refreshItemPositionsDuringDrag([currentElement.value.parentElement])
     resetSelection([currentElement.value])
   }
+}
+
+// Origin dates (and estimation) are stamped at drag start so the clip can
+// restore-then-apply on every tick without drift and a cancelled move can
+// restore the exact pre-drag state. Only consumers that opt in through the
+// clipChildren prop get the stamping and the propagation: other schedules
+// (e.g. MainSchedule) do not persist child moves, so clipping there would
+// silently revert on reload.
+const stampDragOrigin = timeElement => {
+  if (!props.clipChildren) return
+  timeElement._dragOrigStartDate = timeElement.startDate.clone()
+  timeElement._dragOrigEndDate = timeElement.endDate.clone()
+  timeElement._dragOrigEstimation = timeElement.estimation
+  if (!timeElement.parentElement && Array.isArray(timeElement.children)) {
+    timeElement.children.forEach(child => {
+      child._dragOrigStartDate = child.startDate.clone()
+      child._dragOrigEndDate = child.endDate.clone()
+    })
+  }
+}
+
+const propagateClipToChildren = item => {
+  if (!props.clipChildren) return
+  if (item.parentElement || !Array.isArray(item.children)) return
+  const newStart = item.startDate
+  const newEnd = item.endDate
+  item.children.forEach(child => {
+    const origStart = child._dragOrigStartDate
+    const origEnd = child._dragOrigEndDate
+    if (!origStart || !origEnd) return
+
+    // restore from orig before applying clip to prevent drift on back-drag
+    child.startDate = origStart.clone()
+    child.endDate = origEnd.clone()
+
+    if (origEnd.isSameOrBefore(newStart)) {
+      // entirely before new start: snap to 1-day bar at start
+      child.startDate = newStart.clone()
+      child.endDate = newStart.clone().add(1, 'days')
+    } else if (origStart.isBefore(newStart)) {
+      // overlaps start: clip start
+      child.startDate = newStart.clone()
+    } else if (origStart.isSameOrAfter(newEnd)) {
+      // entirely after new end: snap to 1-day bar at end
+      child.startDate = newEnd.clone().subtract(1, 'days')
+      child.endDate = newEnd.clone()
+    } else if (origEnd.isAfter(newEnd)) {
+      // overlaps end: clip end
+      child.endDate = newEnd.clone()
+    }
+    // else: child fully inside new bounds — already restored, leave untouched
+  })
 }
 
 const updateItemEstimation = item => {
@@ -1641,9 +1883,10 @@ const isOverlapping = item => {
   )
 }
 
-const isSelected = item => {
-  return selection.value.some(({ id }) => id === item.id)
-}
+// isSelected runs for every bar on every render: keep it O(1)
+const selectedIds = computed(() => new Set(selection.value.map(({ id }) => id)))
+
+const isSelected = item => selectedIds.value.has(item.id)
 
 const addToSelection = itemToAdd => {
   selection.value.push(itemToAdd)
@@ -1671,8 +1914,13 @@ const moveTimebar = (timeElement, event) => {
     lastStartDate = timeElement.startDate.clone()
     lastEndDate = timeElement.endDate.clone()
     initialClientX = getClientX(event)
+    dragSourcePersonId =
+      event.target.closest?.('[data-person-id]')?.dataset.personId ?? null
+    dragPersonByItem.clear()
     document.body.style.cursor = props.reassignable ? 'all-scroll' : 'ew-resize'
 
+    startMoveTracking()
+    stampDragOrigin(timeElement)
     updateSelection(timeElement, event)
   }
 }
@@ -1692,6 +1940,8 @@ const moveTimebarLeftSide = (timeElement, event) => {
     initialClientX = getClientX(event)
     document.body.style.cursor = 'w-resize'
 
+    startMoveTracking()
+    stampDragOrigin(timeElement)
     updateSelection(timeElement, event)
   }
 }
@@ -1715,6 +1965,8 @@ const moveTimebarRightSide = (timeElement, event) => {
     initialClientX = getClientX(event)
     document.body.style.cursor = 'e-resize'
 
+    startMoveTracking()
+    stampDragOrigin(timeElement)
     updateSelection(timeElement, event)
   }
 }
@@ -1738,7 +1990,9 @@ const setScrollPosition = top => {
 const scrollScheduleLeft = event => {
   if (!timelineContentWrapperRef.value) return
   const previousLeft = timelineContentWrapperRef.value.scrollLeft
-  const movementX = event.movementX || getClientX(event) - initialClientX
+  // cumulative delta from the last processed event: movementX would lose the
+  // moves skipped by the frame throttle
+  const movementX = getClientX(event) - initialClientX
   const newLeft = previousLeft - movementX
   initialClientX = getClientX(event)
   timelineContentWrapperRef.value.scrollLeft = newLeft
@@ -1748,7 +2002,7 @@ const scrollScheduleLeft = event => {
 const scrollScheduleTop = event => {
   if (!timelineContentWrapperRef.value) return
   const previousTop = timelineContentWrapperRef.value.scrollTop
-  const movementY = event.movementY || getClientY(event) - initialClientY
+  const movementY = getClientY(event) - initialClientY
   const newTop = previousTop - movementY
   initialClientY = getClientY(event)
   setScrollPosition(newTop)
@@ -1787,6 +2041,7 @@ const startBrowsing = event => {
     isBrowsingY.value = true
     initialClientX = getClientX(event)
     initialClientY = getClientY(event)
+    startMoveTracking()
   }
 }
 
@@ -1794,18 +2049,27 @@ const startBrowsingX = event => {
   document.body.style.cursor = 'grabbing'
   isBrowsingX.value = true
   initialClientX = getClientX(event)
+  startMoveTracking()
 }
 
 const startBrowsingY = event => {
   document.body.style.cursor = 'grabbing'
   isBrowsingY.value = true
   initialClientY = getClientY(event)
+  startMoveTracking()
 }
 
 const stopBrowsing = event => {
   document.body.style.cursor = 'default'
+  removeEvents(moveEvents)
+  // a pending frame would move the item again after the drop is saved
+  if (moveFrame) {
+    cancelAnimationFrame(moveFrame)
+    moveFrame = null
+  }
   if (currentElement.value) {
     if (initialClientX !== getClientX(event)) {
+      justDragged = true
       // on moving or resizing selected items
       selection.value.forEach(item => {
         emit('item-changed', item)
@@ -1842,10 +2106,43 @@ const stopBrowsing = event => {
   isBrowsingY.value = false
   initialClientX = null
   initialClientY = null
+  dragSourcePersonId = null
+  dragPersonByItem.clear()
   currentElement.value = null
 }
 
 // Helpers
+
+// the template iterates day-off ranges for each root and person row on every
+// render: expand each daysOff array once and reuse it
+const dayOffRangeCache = new WeakMap()
+const cachedDayOffRange = daysOff => {
+  if (!daysOff?.length) return []
+  let range = dayOffRangeCache.get(daysOff)
+  if (!range) {
+    range = getDayOffRange(daysOff)
+    dayOffRangeCache.set(daysOff, range)
+  }
+  return range
+}
+
+// same render-time concern for timesheets: group them by task once per array
+const timesheetsByTaskCache = new WeakMap()
+const taskTimesheets = (rootElement, taskId) => {
+  if (!rootElement.timesheet) return []
+  let byTask = timesheetsByTaskCache.get(rootElement.timesheet)
+  if (!byTask) {
+    byTask = new Map()
+    rootElement.timesheet.forEach(timesheet => {
+      if (!byTask.has(timesheet.task_id)) {
+        byTask.set(timesheet.task_id, [])
+      }
+      byTask.get(timesheet.task_id).push(timesheet)
+    })
+    timesheetsByTaskCache.set(rootElement.timesheet, byTask)
+  }
+  return byTask.get(taskId) ?? []
+}
 
 const dateDiff = (startDate, endDate, unit = 'days') => {
   if (startDate.isSame(endDate) || !startDate.isValid() || !endDate.isValid()) {
@@ -2017,7 +2314,30 @@ const timebarSubchildTitle = task => {
   const duration = isRealSchedule.value
     ? formatDuration(task.duration)
     : formatDuration(task.estimation)
-  return `${name} (${startDate} - ${endDate}) ${duration} ${t('schedule.md')}`
+  return `${name} (${startDate} - ${endDate}) ${duration} ${durationUnit.value}`
+}
+
+// True the first time it's called after a drag, then resets, so it skips
+// only that one trailing click and not the next genuine one.
+const consumeDragClick = () => {
+  if (!justDragged) return false
+  justDragged = false
+  return true
+}
+
+const onRootBarClick = rootElement => {
+  if (consumeDragClick()) return
+  emit('root-element-selected', rootElement)
+}
+
+const onChildBarClick = (rootElement, childElement) => {
+  if (consumeDragClick()) return
+  emit('item-selected', rootElement, childElement)
+}
+
+const onTaskBarClick = (rootElement, childElement, task) => {
+  if (consumeDragClick()) return
+  emit('task-selected', rootElement, childElement, task, selection.value)
 }
 
 const getTimebarLeft = timeElement => {
@@ -2102,7 +2422,7 @@ const childrenStyle = (
 // Milestones
 
 const showEditMilestoneModal = (day, milestone) => {
-  if (isCurrentUserManager.value) {
+  if (isCurrentUserProductionManager.value) {
     modals.edit = true
     if (milestone) {
       Object.assign(milestoneToEdit, {
@@ -2172,19 +2492,62 @@ const addMilestoneTitle = day => {
   return `${t('schedule.milestone.add_milestone')} ${day.format('YYYY-MM-DD')}`
 }
 
-const checkUserIsAllowed = (item, person) => {
-  if (!item) {
-    return false
+const getDropForbiddenReason = (item, person) => {
+  // person may be any root element (e.g. a task type row on the production
+  // schedule): only actual person rows carry a departments list
+  if (!item || !person?.departments) {
+    return 'team'
   }
   const production = openProductions.value.find(
     ({ id }) => id === item.project_id
   )
-  const isTeamMember = production.team.includes(person.id)
+  if (!production || !production.team.includes(person.id)) {
+    return 'team'
+  }
+  const reason = props.assignRule?.(item, person)
+  if (reason) {
+    return reason
+  }
   const isDepartmentMember =
     !person.departments.length ||
     !item.department ||
     person.departments.includes(item.department.id)
-  return isTeamMember && isDepartmentMember
+  return isDepartmentMember ? null : 'department'
+}
+
+const checkUserIsAllowed = (item, person) =>
+  !getDropForbiddenReason(item, person)
+
+const cancelExpandHover = () => {
+  clearTimeout(expandHoverTimer)
+  expandHoverRootId = null
+}
+
+const onRootDragEnter = (event, rootElement) => {
+  if (!props.draggedItems?.length) {
+    return
+  }
+  if (rootElement.expanded || rootElement.loading) {
+    return
+  }
+  if (expandHoverRootId === rootElement.id) {
+    return
+  }
+  clearTimeout(expandHoverTimer)
+  expandHoverRootId = rootElement.id
+  expandHoverTimer = setTimeout(() => {
+    expandHoverRootId = null
+    expandRootElement(rootElement)
+  }, 600)
+}
+
+const onRootDragLeave = (event, rootElement) => {
+  if (event.currentTarget.contains(event.relatedTarget)) {
+    return
+  }
+  if (expandHoverRootId === rootElement.id) {
+    cancelExpandHover()
+  }
 }
 
 const onTaskDragEnter = (event, rootElement) => {
@@ -2193,66 +2556,138 @@ const onTaskDragEnter = (event, rootElement) => {
     dataKey => dataKey === `task-type-${rootElement.task_type_id}`
   )
   if (!draggedItemTaskType) {
-    const item = props.draggedItems?.[0]
-    const isAllowed = checkUserIsAllowed(item, rootElement)
-    if (!isAllowed) {
+    const items = props.draggedItems || []
+    if (!items.length) {
+      return
+    }
+    // one forbidden task forbids the whole batch: no silent partial drop
+    const reason = items
+      .map(item => getDropForbiddenReason(item, rootElement))
+      .find(Boolean)
+    if (reason) {
+      dropTarget.rootElementId = rootElement.id
+      dropTarget.forbidden = reason
       return
     }
   }
   event.currentTarget.classList.add('droppable')
 }
 
-const onTaskDragOver = event => {
+// resolve the hovered column the same way as the position bar: the
+// previous math hardcoded a 300px entity panel offset and counted week
+// cells as days, landing drops on the wrong date.
+// Multiple tasks chain sequentially from the aimed day: each next task
+// starts on the first business day after the previous one ends.
+const getDropRanges = (event, rootElement, items) => {
+  const columns = isWeekMode.value ? weeksAvailable.value : displayedDays.value
+  if (!columns.length) {
+    return []
+  }
+  if (!wrapperRect) {
+    wrapperRect = timelineContentWrapperRef.value.getBoundingClientRect()
+  }
+  const cursorX = getClientX(event) - wrapperRect.left
+  const index = Math.floor(
+    (timelineContentWrapperRef.value.scrollLeft + cursorX) / cellWidth.value
+  )
+  const dropDate = columns[Math.min(Math.max(index, 0), columns.length - 1)]
+  let cursorDate = addBusinessDays(dropDate, 0, rootElement.daysOff)
+  return items.map(item => {
+    const startDate = cursorDate
+    const endDate = item?.estimation
+      ? addBusinessDays(
+          startDate,
+          minutesToDays(organisation.value, item.estimation) - 1,
+          rootElement.daysOff
+        )
+      : startDate
+    cursorDate = addBusinessDays(endDate, 1, rootElement.daysOff)
+    return { item, startDate, endDate }
+  })
+}
+
+const onTaskDragOver = (event, rootElement) => {
+  const items = props.draggedItems || []
+  if (
+    items.length &&
+    dropTarget.forbidden &&
+    dropTarget.rootElementId === rootElement.id
+  ) {
+    // the explanation pill follows the cursor so it cannot be missed
+    if (!wrapperRect) {
+      wrapperRect = timelineContentWrapperRef.value.getBoundingClientRect()
+    }
+    dropTarget.messageLeft =
+      timelineContentWrapperRef.value.scrollLeft +
+      getClientX(event) -
+      wrapperRect.left
+    // no preventDefault: the browser shows the native no-drop cursor
+    return
+  }
   event.preventDefault()
+  if (!items.length) {
+    return
+  }
+  const ranges = getDropRanges(event, rootElement, items)
+  if (!ranges.length) {
+    return
+  }
+  dropTarget.rootElementId = rootElement.id
+  dropTarget.segments = ranges.map(({ item, startDate, endDate }) => ({
+    id: item.id,
+    left: getTimebarLeft({ startDate }),
+    width: getTimebarWidth({ startDate, endDate }),
+    color: item.type_color || null
+  }))
+}
+
+const clearDropTarget = () => {
+  dropTarget.rootElementId = null
+  dropTarget.forbidden = null
+  dropTarget.segments = []
 }
 
 const onTaskDragLeave = event => {
-  event.target.classList.remove('droppable')
+  // child elements fire dragleave too: only react when the cursor
+  // actually leaves the row
+  if (event.currentTarget.contains(event.relatedTarget)) {
+    return
+  }
+  event.currentTarget.classList.remove('droppable')
+  clearDropTarget()
 }
 
 const onTaskDrop = (event, rootElement) => {
-  event.target.classList.remove('droppable')
+  event.currentTarget.classList.remove('droppable')
+  clearDropTarget()
 
-  let item = props.draggedItems?.[0]
-  if (!item) {
+  let items = props.draggedItems?.length ? [...props.draggedItems] : null
+  if (!items) {
     const entityId = event.dataTransfer.getData('entityId')
     const taskTypeId = event.dataTransfer.getData('taskTypeId')
     if (!entityId || taskTypeId !== rootElement.task_type_id) {
       return // invalid task type
     }
-    item = { entity_id: entityId }
-  } else if (!checkUserIsAllowed(item, rootElement)) {
+    items = [{ entity_id: entityId }]
+  } else if (items.some(item => !checkUserIsAllowed(item, rootElement))) {
     return // invalid user rights
   }
 
-  const position =
-    timelineContentWrapperRef.value.scrollLeft +
-    getClientX(event) -
-    300 -
-    cellWidth.value * 1.5
-  const dayPosition = Math.floor(position / cellWidth.value)
-  const dropDate = props.startDate.clone().add(dayPosition, 'days')
-  const startDate = addBusinessDays(dropDate, 0, rootElement.daysOff)
-  const endDate = item.estimation
-    ? addBusinessDays(
-        startDate,
-        minutesToDays(organisation.value, item.estimation) - 1,
-        rootElement.daysOff
-      )
-    : startDate
+  const ranges = getDropRanges(event, rootElement, items)
+  ranges.forEach(({ item, startDate, endDate }) => {
+    // convert to schedule item
+    item.full_entity_name = `${item.entity_type_name} / ${item.entity_name}`
+    item.start_date = startDate.format('YYYY-MM-DD')
+    item.due_date = endDate.format('YYYY-MM-DD')
+    item.parentElement = rootElement
 
-  // convert to schedule item
-  item.full_entity_name = `${item.entity_type_name} / ${item.entity_name}`
-  item.start_date = startDate.format('YYYY-MM-DD')
-  item.due_date = endDate.format('YYYY-MM-DD')
-  item.parentElement = rootElement
-
-  emit(
-    'item-drop',
-    item,
-    rootElement,
-    props.multiline ? refreshItemPositions : undefined
-  )
+    emit(
+      'item-drop',
+      item,
+      rootElement,
+      props.multiline ? refreshItemPositions : undefined
+    )
+  })
 }
 
 const exportData = () => {
@@ -2263,6 +2698,18 @@ const exportData = () => {
 }
 
 // Watchers
+
+// the drag can end anywhere (drop elsewhere, Escape): dragleave alone
+// cannot be trusted to clear the drop preview or the spring-load timer
+watch(
+  () => props.draggedItems,
+  items => {
+    if (!items?.length) {
+      clearDropTarget()
+      cancelExpandHover()
+    }
+  }
+)
 
 watch(
   () => props.startDate,
@@ -2283,19 +2730,18 @@ watch(
   () => {
     resetScheduleSize()
     refreshAllItemPositions()
-    onTimelineScroll(null, { scrollTop: 0, scrollLeft: 0 })
+    setScrollPosition(0)
+    if (timelineContentWrapperRef.value) {
+      timelineContentWrapperRef.value.scrollLeft = 0
+    }
+    if (timelineHeaderRef.value) {
+      timelineHeaderRef.value.scrollLeft = 0
+    }
   }
 )
 
 watch(
   () => props.isLoading,
-  () => {
-    nextTick(resetScheduleSize)
-  }
-)
-
-watch(
-  () => props.height,
   () => {
     nextTick(resetScheduleSize)
   }
@@ -2326,31 +2772,39 @@ watch(
 // Lifecycle
 
 onMounted(() => {
-  domEvents = [
+  moveEvents = [
     ['mousemove', onMouseMove],
-    ['touchmove', onMouseMove],
+    ['touchmove', onMouseMove]
+  ]
+  domEvents = [
     ['mouseup', stopBrowsing],
     ['mouseleave', stopBrowsing],
     ['touchend', stopBrowsing],
-    ['touchcancel', stopBrowsing],
-    ['resize', resetScheduleSize]
+    ['touchcancel', stopBrowsing]
   ]
   resetScheduleSize()
   addEvents(domEvents)
+  // `resize` only fires on window, never on document.
+  window.addEventListener('resize', resetScheduleSize)
 })
 
 onBeforeUnmount(() => {
+  cancelExpandHover()
   removeEvents(domEvents)
+  removeEvents(moveEvents)
+  if (positionBarFrame) cancelAnimationFrame(positionBarFrame)
+  if (moveFrame) cancelAnimationFrame(moveFrame)
+  window.removeEventListener('resize', resetScheduleSize)
   document.body.style.cursor = 'default'
 })
 
 defineExpose({
   exportData,
-  getNbSubChildren,
   refreshAllItemPositions,
   refreshItemPositions,
   refreshManDays,
   resetScheduleSize,
+  resetSelection,
   scrollToDate,
   scrollToToday,
   setScrollPosition
@@ -2362,54 +2816,34 @@ defineExpose({
  *
  * @param {Array<Object>} items - The list of items to position.
  * @param {Moment.unitOfTime} unitOfTime - A unit of time (eg. 'days', 'weeks', 'months', ...).
- * @returns {Array<Object>} The list of items with updated positions.
  */
 const setItemPositions = (items, unitOfTime = 'days') => {
   if (!items?.length) {
     return
   }
-  const attributeName = 'line'
-  const matrix = []
   const minDate = moment
     .min(items.map(item => item.startDate))
     .clone()
     .startOf(unitOfTime)
-  const maxDate = moment
-    .max(items.map(item => item.endDate))
-    .clone()
-    .endOf(unitOfTime)
-  const nbColumns = maxDate.diff(minDate, unitOfTime) + 1
 
+  // one entry per line: the [start, end] ranges already placed on it
+  const lines = []
   items.forEach(item => {
     const start = item.startDate
       .clone()
       .startOf(unitOfTime)
       .diff(minDate, unitOfTime)
     const end = item.endDate.clone().endOf(unitOfTime).diff(minDate, unitOfTime)
-    const line = getFreeLinePosition(item.id, start, end, matrix)
-    item[attributeName] = line
-  })
-
-  function getFreeLinePosition(value, start, end, matrix, line = 0) {
-    for (let index = start; index <= end; index++) {
-      // if empty line
-      if (!matrix[line]) {
-        matrix.push(Array(nbColumns).fill(0))
-        index = end
-      }
-      // if collision on line
-      else if (matrix[line][index]) {
-        // go to next line
-        return getFreeLinePosition(value, start, end, matrix, line + 1)
-      }
-      // if no collision for the whole item
-      if (index === end) {
-        // save item in matrix
-        matrix[line].fill(value, start, end + 1)
-        return line
-      }
+    let line = 0
+    while (lines[line]?.some(([s, e]) => start <= e && end >= s)) {
+      line++
     }
-  }
+    if (!lines[line]) {
+      lines[line] = []
+    }
+    lines[line].push([start, end])
+    item.line = line
+  })
 }
 </script>
 
@@ -2739,6 +3173,9 @@ const setItemPositions = (items, unitOfTime = 'days') => {
         top: 0;
         bottom: 0;
         background: rgba(200, 255, 200, 0.3);
+        // purely visual overlay: crossing it must not fire dragleave on
+        // the row below (it made the drop ghost flicker)
+        pointer-events: none;
         z-index: 100;
 
         &.today {
@@ -2759,6 +3196,7 @@ const setItemPositions = (items, unitOfTime = 'days') => {
         width: 1px;
         border-left: 1px dashed black;
         margin-left: -0.5px;
+        pointer-events: none;
         z-index: 100;
       }
 
@@ -3006,10 +3444,84 @@ const setItemPositions = (items, unitOfTime = 'days') => {
   justify-content: center;
 }
 
+// Keep the expanded row at a stable two-line height while its tasks
+// load, so the content doesn't jump in under the spinner.
+.children-loading {
+  align-items: center;
+  display: flex;
+  min-height: 90px;
+
+  .children-loader {
+    flex: 1;
+  }
+}
+
 .children {
   position: relative;
   margin-bottom: 1em;
   min-height: 40px;
+}
+
+// preview of where the dragged task would land, at its estimated span
+.drop-ghost {
+  background: color-mix(
+    in srgb,
+    var(--timebar-color, #888) 25%,
+    var(--background)
+  );
+  border: 2px dashed var(--timebar-color, #888);
+  border-radius: 4px;
+  height: 30px;
+  pointer-events: none;
+  position: absolute;
+  top: 5px;
+  z-index: 200;
+}
+
+.dark .drop-ghost {
+  // the dark background swallows the 25% tint: raise the color share
+  background: color-mix(
+    in srgb,
+    var(--timebar-color, #888) 55%,
+    var(--background)
+  );
+}
+
+// crossed-out row: the person cannot receive the dragged task
+.drop-forbidden {
+  align-items: center;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(229, 57, 53, 0.08),
+    rgba(229, 57, 53, 0.08) 10px,
+    transparent 10px,
+    transparent 20px
+  );
+  bottom: 0;
+  display: flex;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 200;
+
+  .drop-forbidden-message {
+    align-items: center;
+    background: var(--background-alt-2);
+    border: 1px solid $red;
+    border-radius: 999px;
+    color: $red;
+    display: flex;
+    font-size: 0.9em;
+    gap: 0.4em;
+    padding: 0.25em 0.75em;
+    // follows the drag cursor (left is set inline on dragover)
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    white-space: nowrap;
+  }
 }
 .timeline-element:last-child .children {
   margin-bottom: 0;
@@ -3340,6 +3852,23 @@ input[type='number'] {
         background-color: #414349;
       }
     }
+  }
+}
+@media screen and (max-width: 768px) {
+  .entities,
+  .total-man-days {
+    min-width: 180px;
+  }
+
+  .entities .entity-line {
+    max-width: 180px;
+    min-width: 180px;
+  }
+
+  .child-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 </style>

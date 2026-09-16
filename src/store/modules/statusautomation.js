@@ -79,12 +79,12 @@ const mutations = {
 
   [LOAD_STATUS_AUTOMATIONS_ERROR](state) {
     state.statusAutomations = []
-    cache.statusAutomationMap = new Map()
+    cache.statusAutomationMap.clear()
   },
 
   [LOAD_STATUS_AUTOMATIONS_END](state, statusAutomations) {
     state.statusAutomations = statusAutomations
-    cache.statusAutomationMap = new Map()
+    cache.statusAutomationMap.clear()
     statusAutomations.forEach(statusAutomation => {
       cache.statusAutomationMap.set(statusAutomation.id, statusAutomation)
     })
@@ -112,6 +112,7 @@ const mutations = {
 
   [RESET_ALL](state) {
     Object.assign(state, { ...initialState })
+    cache.statusAutomationMap.clear()
   }
 }
 

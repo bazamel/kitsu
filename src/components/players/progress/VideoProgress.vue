@@ -40,7 +40,7 @@
         v-if="handleIn >= 0 && !isFullMode && !empty"
       >
         <span class="handle-frame" v-if="handleIn !== 0">
-          {{ handleIn + 1 }}
+          {{ handleIn + 1 + frameStartOffset }}
         </span>
       </span>
 
@@ -53,7 +53,7 @@
         v-if="handleOut >= 0 && !isFullMode && !empty"
       >
         <span class="handle-frame">
-          {{ handleOut + 1 }}
+          {{ handleOut + 1 + frameStartOffset }}
         </span>
       </span>
 
@@ -109,7 +109,7 @@
           isFrameNumberVisible && hoverFrame > 0 && !empty && !progressDragging
         "
       >
-        {{ hoverFrame }}
+        {{ hoverFrame + frameStartOffset }}
         <span
           class="frame-tile"
           :style="getFrameBackgroundStyle(hoverFrame)"
@@ -148,6 +148,10 @@ const props = defineProps({
   },
   frameDuration: {
     default: 0,
+    type: Number
+  },
+  frameStart: {
+    default: undefined,
     type: Number
   },
   handleIn: {
@@ -199,7 +203,8 @@ const hoverFrame = ref(0)
 const isFrameNumberVisible = ref(false)
 const progress = ref(null)
 const progressDragging = ref(false)
-const tileGeometry = ref(null)
+// undefined while the sprite loads, null when there is none.
+const tileGeometry = ref(undefined)
 const width = ref(0)
 
 // Mouse scratch state; not reactive — written from event handlers, never read by template
@@ -212,6 +217,12 @@ const getClientX = event =>
 
 const videoDuration = computed(() => props.nbFrames * props.frameDuration)
 
+// Display-only shift so the first frame reads as `frameStart` (e.g. a shot
+// with data.frame_in = 1001) instead of 1. Internal frame math is untouched.
+const frameStartOffset = computed(() =>
+  props.frameStart > 0 ? props.frameStart - 1 : 0
+)
+
 const backgroundSize = computed(() => {
   if (videoDuration.value) {
     return 200 / props.nbFrames + '% 100%'
@@ -222,24 +233,28 @@ const backgroundSize = computed(() => {
 
 // Alternating frame stripes generated at the exact frame size, using the
 // two colors sampled from the legacy player-timeslider.png — the
-// stretched texture blurred as soon as the clip had few frames. Stripes
-// are dropped when frames get too dense to read.
-// Below this per-frame width the alternating stripes are too dense to read
-// and just shimmer, so we drop them. The clip is then painted a solid dark
-// grey rather than exposing the light base background, which on long clips
-// looked like a rendering bug.
+// stretched texture blurred as soon as the clip had few frames.
+// Below this stripe width the alternating pattern is too dense to read and
+// just shimmers. Instead of dropping the stripes entirely on long clips
+// (which removed every landmark from the timeline — issue #2061), group
+// several frames per stripe so it never gets thinner than this.
+const MIN_STRIPE_WIDTH = 4
+
 const DENSE_FRAME_FALLBACK = 'linear-gradient(rgb(54, 57, 63), rgb(54, 57, 63))'
 
 const frameTicksGradient = computed(() => {
   const size = effectiveFrameSize.value
-  if (!size || size < 3) return DENSE_FRAME_FALLBACK
+  if (!size) return DENSE_FRAME_FALLBACK
+  const framesPerStripe = Math.max(1, Math.ceil(MIN_STRIPE_WIDTH / size))
+  const stripe = size * framesPerStripe
   // Anchor the stripe phase on the view window so frames keep their
   // shade while panning/zooming.
-  const phase = -(viewStartFrame.value % 2) * size
+  const phase = -(viewStartFrame.value % (2 * framesPerStripe)) * size
   return (
     `repeating-linear-gradient(to right, ` +
-    `rgb(54, 57, 63) ${phase}px, rgb(54, 57, 63) ${phase + size}px, ` +
-    `rgb(84, 89, 98) ${phase + size}px, rgb(84, 89, 98) ${phase + 2 * size}px)`
+    `rgb(54, 57, 63) ${phase}px, rgb(54, 57, 63) ${phase + stripe}px, ` +
+    `rgb(84, 89, 98) ${phase + stripe}px, ` +
+    `rgb(84, 89, 98) ${phase + 2 * stripe}px)`
   )
 })
 
@@ -251,21 +266,31 @@ const zoomLevel = ref(1)
 const viewStartFrame = ref(0)
 
 const visibleFrames = computed(() => props.nbFrames / zoomLevel.value)
-const effectiveFrameSize = computed(() => width.value / visibleFrames.value)
+// A hidden or not-yet-measured bar has a width of 0, and a preview whose
+// metadata is still loading has no frame: both divisions would yield 0 / 0
+// and poison every position with NaN.
+const effectiveFrameSize = computed(() =>
+  visibleFrames.value > 0 ? width.value / visibleFrames.value : 0
+)
 
 const frameToX = frame =>
   (frame - viewStartFrame.value) * effectiveFrameSize.value
-const xToFrame = x => viewStartFrame.value + x / effectiveFrameSize.value
+const xToFrame = x =>
+  effectiveFrameSize.value > 0
+    ? viewStartFrame.value + x / effectiveFrameSize.value
+    : viewStartFrame.value
 
 const clampViewStart = start =>
-  Math.min(Math.max(start, 0), props.nbFrames - visibleFrames.value)
+  Number.isFinite(start)
+    ? Math.min(Math.max(start, 0), props.nbFrames - visibleFrames.value)
+    : 0
 
 const onWheelZoom = event => {
   // Zoom is a Ctrl+wheel gesture (map-style): a plain wheel keeps
   // scrolling the surrounding widgets/page.
   if (!event.ctrlKey) return
   event.preventDefault()
-  if (props.empty || !props.nbFrames) return
+  if (props.empty || !props.nbFrames || !width.value) return
   const anchorFrame = xToFrame(getClientX(event) - getProgressLeft())
   const factor = event.deltaY < 0 ? 1.25 : 1 / 1.25
   // Never zoom past ~8 visible frames, never below the full clip.
@@ -364,7 +389,7 @@ const onWindowResize = () => {
 watch(
   () => props.previewId,
   () => {
-    tileGeometry.value = null
+    tileGeometry.value = undefined
     if (!props.previewId) return
     const previewId = props.previewId
     const base = props.urlPrefix || '/api'
@@ -389,11 +414,15 @@ const getAnnotationPosition = annotation => {
 let lastProgressFrame = 0
 
 const updateProgressBar = frameNumber => {
+  if (!progress.value || !Number.isFinite(frameNumber)) return
   lastProgressFrame = frameNumber
   const relative = frameNumber - viewStartFrame.value
-  progress.value.value = props.empty
+  const value = props.empty
     ? relative * props.frameDuration
     : (relative + 1) * props.frameDuration
+  // The setter throws on a non-finite value, which would break the whole
+  // render pass, not just the fill.
+  if (Number.isFinite(value)) progress.value.value = value
 }
 
 const startProgressDrag = () => {
@@ -469,6 +498,10 @@ const getMouseFrame = (event, annotation) => {
 }
 
 const doProgressDrag = event => {
+  // The listeners live on `document`, so a drag started on the bar keeps
+  // firing after a preview switch hides it (v-show) or drops its frame
+  // count. Without geometry every position maps to NaN.
+  if (!width.value || !props.nbFrames) return
   if (
     progressDragging.value ||
     handleInDragging.value ||
@@ -510,6 +543,15 @@ const getFrameBackgroundStyle = frame => {
   // preview's stored dimensions, which drift from the file the sprite
   // was built from (source ratio ≠ production ratio, renormalisations).
   const geometry = tileGeometry.value
+  if (geometry === null) {
+    // No sprite for this movie: its thumbnail, rather than a background
+    // URL the browser would request again at every hover.
+    return {
+      background: `url(${base}/pictures/thumbnails/preview-files/${previewId}.png)`,
+      'background-position': '0 0',
+      width: '150px'
+    }
+  }
   const frameWidth =
     geometry?.cellWidth ?? Math.ceil(TILE_CELL_HEIGHT * videoRatio.value)
   const cellCount = geometry?.cellCount ?? 3840

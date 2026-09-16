@@ -8,7 +8,11 @@
             active: selectedBar === 'change-status'
           }"
           :title="$t('menu.change_status')"
+          role="button"
+          tabindex="0"
           @click="selectBar('change-status')"
+          @keydown.enter.prevent="selectBar('change-status')"
+          @keydown.space.prevent="selectBar('change-status')"
           v-if="
             (isCurrentUserManager ||
               isSupervisorInDepartment ||
@@ -28,7 +32,11 @@
             active: selectedBar === 'assignation'
           }"
           :title="$t('menu.assign_tasks')"
+          role="button"
+          tabindex="0"
           @click="selectBar('assignation')"
+          @keydown.enter.prevent="selectBar('assignation')"
+          @keydown.space.prevent="selectBar('assignation')"
           v-if="
             (isCurrentViewSingleEntity || isCurrentViewEntity) &&
             (isCurrentUserManager ||
@@ -62,7 +70,11 @@
             !isEntitySelection &&
             isTaskSelection
           "
+          role="button"
+          tabindex="0"
           @click="selectBar('priorities')"
+          @keydown.enter.prevent="selectBar('priorities')"
+          @keydown.space.prevent="selectBar('priorities')"
         >
           <kitsu-icon
             name="priority"
@@ -80,7 +92,11 @@
           v-if="
             isTaskSelection && !isCurrentUserArtist && !isCurrentViewConcept
           "
+          role="button"
+          tabindex="0"
           @click="selectBar('thumbnails')"
+          @keydown.enter.prevent="selectBar('thumbnails')"
+          @keydown.space.prevent="selectBar('thumbnails')"
         >
           <kitsu-icon
             name="add-thumbnail"
@@ -101,7 +117,11 @@
             !isCurrentViewTodos &&
             !isCurrentViewConcept
           "
+          role="button"
+          tabindex="0"
           @click="selectBar('subscribe')"
+          @keydown.enter.prevent="selectBar('subscribe')"
+          @keydown.space.prevent="selectBar('subscribe')"
         >
           <kitsu-icon
             name="watch"
@@ -116,7 +136,11 @@
             active: selectedBar === 'edit-concepts'
           }"
           :title="$t('menu.edit_concepts')"
+          role="button"
+          tabindex="0"
           @click="selectBar('edit-concepts')"
+          @keydown.enter.prevent="selectBar('edit-concepts')"
+          @keydown.space.prevent="selectBar('edit-concepts')"
           v-if="
             isCurrentViewConcept &&
             (isCurrentUserManager || isConceptPublisher) &&
@@ -148,7 +172,11 @@
             isTaskSelection &&
             nbSelectedTasks > 0
           "
+          role="button"
+          tabindex="0"
           @click="selectBar('playlists')"
+          @keydown.enter.prevent="selectBar('playlists')"
+          @keydown.space.prevent="selectBar('playlists')"
         >
           <kitsu-icon
             name="playlists"
@@ -176,7 +204,11 @@
             active: selectedBar === 'create-tasks'
           }"
           :title="$t('menu.create_tasks')"
+          role="button"
+          tabindex="0"
           @click="selectBar('create-tasks')"
+          @keydown.enter.prevent="selectBar('create-tasks')"
+          @keydown.space.prevent="selectBar('create-tasks')"
           v-if="
             isCurrentViewEntity &&
             !isCurrentViewTaskType &&
@@ -194,7 +226,11 @@
             active: selectedBar === 'delete-tasks'
           }"
           :title="$t('menu.delete_tasks')"
+          role="button"
+          tabindex="0"
           @click="selectBar('delete-tasks')"
+          @keydown.enter.prevent="selectBar('delete-tasks')"
+          @keydown.space.prevent="selectBar('delete-tasks')"
           v-if="
             isCurrentViewEntity &&
             isCurrentUserManager &&
@@ -226,7 +262,11 @@
             active: selectedBar === 'custom-actions'
           }"
           :title="$t('menu.run_custom_action')"
+          role="button"
+          tabindex="0"
           @click="selectBar('custom-actions')"
+          @keydown.enter.prevent="selectBar('custom-actions')"
+          @keydown.space.prevent="selectBar('custom-actions')"
           v-if="
             !isEntitySelection &&
             isTaskSelection &&
@@ -243,7 +283,11 @@
             active: selectedBar === 'delete-assets'
           }"
           :title="$t('menu.delete_assets')"
+          role="button"
+          tabindex="0"
           @click="selectBar('delete-assets')"
+          @keydown.enter.prevent="selectBar('delete-assets')"
+          @keydown.space.prevent="selectBar('delete-assets')"
           v-if="isCurrentViewAsset && isCurrentUserManager && !isTaskSelection"
         >
           <kitsu-icon name="trash" :title="$t('menu.delete_assets')" />
@@ -255,7 +299,11 @@
             active: selectedBar === 'delete-shots'
           }"
           :title="$t('menu.delete_shots')"
+          role="button"
+          tabindex="0"
           @click="selectBar('delete-shots')"
+          @keydown.enter.prevent="selectBar('delete-shots')"
+          @keydown.space.prevent="selectBar('delete-shots')"
           v-if="isCurrentViewShot && isCurrentUserManager && !isTaskSelection"
         >
           <kitsu-icon name="trash" :title="$t('menu.delete_shots')" />
@@ -267,7 +315,11 @@
             active: selectedBar === 'delete-edits'
           }"
           :title="$t('menu.delete_edits')"
+          role="button"
+          tabindex="0"
           @click="selectBar('delete-edits')"
+          @keydown.enter.prevent="selectBar('delete-edits')"
+          @keydown.space.prevent="selectBar('delete-edits')"
           v-if="isCurrentViewEdit && isCurrentUserManager && !isTaskSelection"
         >
           <kitsu-icon name="trash" :title="$t('menu.delete_edits')" />
@@ -279,7 +331,11 @@
             active: selectedBar === 'delete-concepts'
           }"
           :title="$t('menu.delete_concepts')"
+          role="button"
+          tabindex="0"
           @click="selectBar('delete-concepts')"
+          @keydown.enter.prevent="selectBar('delete-concepts')"
+          @keydown.space.prevent="selectBar('delete-concepts')"
           v-if="
             isCurrentViewConcept && (isCurrentUserManager || isConceptPublisher)
           "
@@ -292,7 +348,11 @@
         <div
           class="menu-item"
           :title="$t('main.csv.export_file')"
+          role="button"
+          tabindex="0"
           @click="$emit('export-task')"
+          @keydown.enter.prevent="$emit('export-task')"
+          @keydown.space.prevent="$emit('export-task')"
           v-if="
             isTaskSelection &&
             !isEntitySelection &&
@@ -306,7 +366,11 @@
         <div
           class="menu-item mr05"
           :title="$t('main.clear_selection')"
+          role="button"
+          tabindex="0"
           @click="clearSelection"
+          @keydown.enter.prevent="clearSelection"
+          @keydown.space.prevent="clearSelection"
         >
           <x-icon :size="16" />
         </div>
@@ -343,7 +407,8 @@
               @click="confirmTaskStatusChange"
             >
               {{
-                $tc('tasks.change_task_status', nbSelectedTasks, {
+                $t('tasks.change_task_status', {
+                  count: nbSelectedTasks,
                   nbSelectedTasks
                 })
               }}
@@ -356,7 +421,7 @@
           v-if="selectedBar === 'assignation'"
         >
           <div class="mb05" v-if="isCurrentUserArtist">
-            {{ $tc('tasks.to_myself') }}
+            {{ $t('tasks.to_myself') }}
           </div>
           <div
             class="mb05"
@@ -366,7 +431,7 @@
               class="is-wide assignation-field"
               ref="assignation-field"
               :people="currentTeam"
-              :placeholder="$t('tasks.assign_explaination')"
+              :placeholder="$t('tasks.assign_explanation')"
               wide
               v-model="person"
             />
@@ -380,7 +445,9 @@
               class="button confirm-button is-wide"
               @click="confirmAssign"
             >
-              {{ $tc('tasks.assign', nbSelectedTasks, { nbSelectedTasks }) }}
+              {{
+                $t('tasks.assign', { count: nbSelectedTasks, nbSelectedTasks })
+              }}
             </button>
           </div>
           <div class="flexrow-item mb05 disclaimer">
@@ -464,7 +531,8 @@
               @click="confirmPriorityChange"
             >
               {{
-                $tc('tasks.change_priority', nbSelectedTasks, {
+                $t('tasks.change_priority', {
+                  count: nbSelectedTasks,
                   nbSelectedTasks
                 })
               }}
@@ -495,7 +563,8 @@
             v-if="nbSelectedTasks > 1"
           >
             {{
-              $tc('tasks.set_thumbnails_from_tasks', nbSelectedTasks, {
+              $t('tasks.set_thumbnails_from_tasks', {
+                count: nbSelectedTasks,
                 nbSelectedTasks
               })
             }}
@@ -532,7 +601,8 @@
               @click="confirmTasksSubscription"
             >
               {{
-                $tc('tasks.subscribe_to_tasks', nbSelectedTasks, {
+                $t('tasks.subscribe_to_tasks', {
+                  count: nbSelectedTasks,
                   nbSelectedTasks
                 })
               }}
@@ -570,7 +640,11 @@
               <li
                 :key="entity.id"
                 class="tag"
+                role="button"
+                tabindex="0"
                 @click="onRemoveLink(entity)"
+                @keydown.enter.prevent="onRemoveLink(entity)"
+                @keydown.space.prevent="onRemoveLink(entity)"
                 v-for="entity in conceptLinkedEntities"
               >
                 {{ entity.name }}
@@ -590,7 +664,8 @@
             "
             :hard-delete-text="$t('tasks.delete_for_selection_hard_text')"
             :text="
-              $tc('tasks.delete_for_selection', nbSelectedTasks, {
+              $t('tasks.delete_for_selection', {
+                count: nbSelectedTasks,
                 nbSelectedTasks
               })
             "
@@ -657,7 +732,8 @@
                 />
                 <button class="button is-wide" type="submit">
                   {{
-                    $tc('custom_actions.run_for_selection', nbSelectedTasks, {
+                    $t('custom_actions.run_for_selection', {
+                      count: nbSelectedTasks,
                       nbSelectedTasks
                     })
                   }}
@@ -667,7 +743,8 @@
             <div class="flexrow-item is-wide" v-else>
               <button class="button is-wide" @click="runCustomAction">
                 {{
-                  $tc('custom_actions.run_for_selection', nbSelectedTasks, {
+                  $t('custom_actions.run_for_selection', {
+                    count: nbSelectedTasks,
                     nbSelectedTasks
                   })
                 }}
@@ -685,15 +762,16 @@
             :is-loading="loading.assetDeletion"
             :is-error="errors.assetDeletion"
             :text="
-              $tc('assets.delete_for_selection', nbSelectedAssets, {
+              $t('assets.delete_for_selection', {
+                count: nbSelectedAssets,
                 nbSelectedAssets
               })
             "
             :require-hard-delete-confirmation="allAssetsCanceled"
             :hard-delete-lock-text="
-              $tc('assets.delete_for_selection_hard_lock_text')
+              $t('assets.delete_for_selection_hard_lock_text')
             "
-            :hard-delete-text="$tc('assets.delete_for_selection_hard_text')"
+            :hard-delete-text="$t('assets.delete_for_selection_hard_text')"
             @confirm="confirmAssetDeletion"
           />
         </div>
@@ -702,9 +780,10 @@
           <delete-entities
             :error-text="$t('shots.multiple_delete_error')"
             :is-loading="loading.shotDeletion"
-            :is-error="errors.deleteShot"
+            :is-error="errors.shotDeletion"
             :text="
-              $tc('shots.delete_for_selection', nbSelectedShots, {
+              $t('shots.delete_for_selection', {
+                count: nbSelectedShots,
                 nbSelectedShots
               })
             "
@@ -721,9 +800,10 @@
           <delete-entities
             :error-text="$t('edits.multiple_delete_error')"
             :is-loading="loading.editDeletion"
-            :is-error="errors.deleteEdit"
+            :is-error="errors.editDeletion"
             :text="
-              $tc('edits.delete_for_selection', nbSelectedEdits, {
+              $t('edits.delete_for_selection', {
+                count: nbSelectedEdits,
                 nbSelectedEdits
               })
             "
@@ -738,32 +818,15 @@
 
         <div
           class="flexrow-item is-wide"
-          v-if="selectedBar === 'delete-episodes'"
-        >
-          <delete-entities
-            :error-text="$t('episodes.multiple_delete_error')"
-            :is-loading="loading.episodeDeletion"
-            :is-error="errors.deleteEpisode"
-            :text="
-              $tc('episodes.delete_for_selection', nbSelectedEpisodes, {
-                nbSelectedEpisodes
-              })
-            "
-            :require-hard-delete-confirmation="true"
-            @confirm="confirmEpisodeDeletion"
-          />
-        </div>
-
-        <div
-          class="flexrow-item is-wide"
           v-if="selectedBar === 'delete-concepts'"
         >
           <delete-entities
             :error-text="$t('concepts.multiple_delete_error')"
-            :is-loading="loading.episodeDeletion"
-            :is-error="errors.deleteEpisode"
+            :is-loading="loading.conceptDeletion"
+            :is-error="errors.conceptDeletion"
             :text="
-              $tc('concepts.delete_for_selection', nbSelectedConcepts, {
+              $t('concepts.delete_for_selection', {
+                count: nbSelectedConcepts,
                 nbSelectedConcepts
               })
             "
@@ -796,8 +859,7 @@
             @click="modals.buildFilter = true"
           />
         </div>
-        <spinner v-if="loading.links" />
-        <div class="link-list" v-else>
+        <div class="link-list">
           <ul
             class="link-types"
             :key="`link-types-${index}`"
@@ -811,7 +873,11 @@
                 <li
                   class="tag"
                   :key="link.id"
+                  role="button"
+                  tabindex="0"
                   @click="onSelectLink(link)"
+                  @keydown.enter.prevent="onSelectLink(link)"
+                  @keydown.space.prevent="onSelectLink(link)"
                   v-for="link in linkGroup.links"
                 >
                   {{ link.name }}
@@ -831,10 +897,11 @@
     />
 
     <view-playlist-modal
-      :active="modals.playlist"
-      :task-ids="selectedTaskIds"
+      active
       sort
+      :task-ids="selectedTaskIds"
       @cancel="hidePlaylistModal"
+      v-if="modals.playlist"
     />
   </div>
 </template>
@@ -850,7 +917,6 @@ import { mapGetters, mapActions } from 'vuex'
 
 import assetsStore from '@/store/modules/assets.js'
 import { intersection } from '@/lib/array'
-import func from '@/lib/func'
 
 import BuildFilterModal from '@/components/modals/BuildFilterModal.vue'
 import ButtonSimple from '@/components/widgets/ButtonSimple.vue'
@@ -946,12 +1012,10 @@ export default {
         changeStatus: false,
         conceptDeletion: false,
         editDeletion: false,
-        episodeDeletion: false,
         taskCreation: false,
         taskDeletion: false,
         setThumbnails: false,
         shotDeletion: false,
-        links: false,
         tasksSubscription: false
       },
       errors: {
@@ -960,7 +1024,6 @@ export default {
         taskDeletion: false,
         conceptDeletion: false,
         editDeletion: false,
-        episodeDeletion: false,
         shotDeletion: false
       }
     }
@@ -981,8 +1044,6 @@ export default {
       'getCustomActionsByType',
       'isCurrentUserArtist',
       'isCurrentUserClient',
-      'isCurrentUserManager',
-      'isCurrentUserSupervisor',
       'isShowAssignations',
       'nbSelectedTasks',
       'nbSelectedValidations',
@@ -997,6 +1058,24 @@ export default {
       'taskTypeMap',
       'user'
     ]),
+
+    // Role gating follows the production of the displayed tasks, not the
+    // globally selected one: this panel also serves cross-production views
+    // (Todos, All Tasks, checks, notifications).
+    currentUserProductionRole() {
+      return this.$store.getters.currentUserRoleForProduction(this.productionId)
+    },
+
+    isCurrentUserManager() {
+      return (
+        this.$store.getters.isCurrentUserAdmin ||
+        this.currentUserProductionRole === 'manager'
+      )
+    },
+
+    isCurrentUserSupervisor() {
+      return this.currentUserProductionRole === 'supervisor'
+    },
 
     assetMap() {
       return assetsStore.cache.assetMap
@@ -1214,11 +1293,11 @@ export default {
         if (task) {
           const taskType = this.taskTypeMap.get(task.task_type_id)
           return (
-            taskType.department_id &&
+            taskType?.department_id &&
             this.user.departments.includes(taskType.department_id)
           )
         } else {
-          return true // We are in the artist todolist.
+          return true // The task is not loaded, don't block the action here.
         }
       })
     },
@@ -1285,17 +1364,19 @@ export default {
       'deleteSelectedShots',
       'deleteSelectedTasks',
       'deleteSelectedEdits',
-      'deleteSelectedEpisodes',
       'deleteSelectedConcepts',
       'editConcept',
       'loadAssets',
       'postCustomAction',
       'setAssetSearch',
       'setLastTaskPreview',
+      'setTasksMainPreview',
       'subscribeToTask',
-      'unassignPersonFromTask',
+      'subscribeToTasks',
+      'unassignPersonFromTasks',
       'unassignSelectedTasks',
-      'unsubscribeFromTask'
+      'unsubscribeFromTask',
+      'unsubscribeFromTasks'
     ]),
 
     getLinkedEntities(concept) {
@@ -1347,16 +1428,14 @@ export default {
       const person = this.isCurrentUserArtist ? this.user : this.person
       if (person) {
         this.loading.assignation = true
-        func
-          .runPromiseAsSeries(
-            Array.from(this.selectedTasks.values()).map(task => {
-              return this.unassignPersonFromTask({ task, person })
-            })
-          )
-          .then(() => {
+        this.unassignPersonFromTasks({
+          tasks: Array.from(this.selectedTasks.values()),
+          person
+        })
+          .catch(console.error)
+          .finally(() => {
             this.loading.assignation = false
           })
-          .catch(console.error)
       }
     },
 
@@ -1415,62 +1494,62 @@ export default {
     },
 
     confirmAssetDeletion() {
-      this.loading.deleteAsset = true
-      this.errors.deleteAsset = false
+      this.loading.assetDeletion = true
+      this.errors.assetDeletion = false
       this.deleteSelectedAssets()
         .then(() => {
-          this.loading.deleteAsset = false
+          this.loading.assetDeletion = false
           this.clearSelectedAssets()
         })
         .catch(err => {
           console.error(err)
-          this.loading.deleteAsset = false
-          this.errors.deleteAsset = true
+          this.loading.assetDeletion = false
+          this.errors.assetDeletion = true
         })
     },
 
     confirmShotDeletion() {
-      this.loading.deleteShot = true
-      this.errors.deleteShot = false
+      this.loading.shotDeletion = true
+      this.errors.shotDeletion = false
       this.deleteSelectedShots()
         .then(() => {
-          this.loading.deleteShot = false
+          this.loading.shotDeletion = false
           this.clearSelectedShots()
         })
         .catch(err => {
           console.error(err)
-          this.loading.deleteShot = false
-          this.errors.deleteShot = true
+          this.loading.shotDeletion = false
+          this.errors.shotDeletion = true
         })
     },
 
     confirmEditDeletion() {
-      this.loading.deleteEdit = true
-      this.errors.deleteEdit = false
+      this.loading.editDeletion = true
+      this.errors.editDeletion = false
       this.deleteSelectedEdits()
         .then(() => {
-          this.loading.deleteEdit = false
+          this.loading.editDeletion = false
           this.clearSelectedEdits()
         })
         .catch(err => {
           console.error(err)
-          this.loading.deleteEdit = false
-          this.errors.deleteEdit = true
+          this.loading.editDeletion = false
+          this.errors.editDeletion = true
         })
     },
 
     confirmConceptDeletion() {
-      this.loading.deleteConcept = true
-      this.errors.deleteConcept = false
+      this.loading.conceptDeletion = true
+      this.errors.conceptDeletion = false
       this.deleteSelectedConcepts()
         .then(() => {
-          this.loading.deleteConcept = false
+          this.loading.conceptDeletion = false
           this.clearSelectedConcepts()
         })
         .catch(err => {
           console.error(err)
-          this.loading.deleteConcept = false
-          this.errors.deleteConcept = true
+          this.loading.conceptDeletion = false
+          this.errors.conceptDeletion = true
         })
     },
 
@@ -1481,37 +1560,23 @@ export default {
 
     confirmTasksSubscription() {
       this.loading.tasksSubscription = true
-      func
-        .runPromiseAsSeries(
-          Array.from(this.selectedTasks.values()).map(task => {
-            return this.subscribeToTask(task.id)
-          })
-        )
-        .then(() => {
-          this.loading.tasksSubscription = false
-        })
+      this.subscribeToTasks(Array.from(this.selectedTasks.keys()))
         .catch(err => {
           console.error(err)
+        })
+        .finally(() => {
           this.loading.tasksSubscription = false
-          this.errors.tasksSubscription = false
         })
     },
 
     confirmTasksUnsubscription() {
       this.loading.tasksSubscription = true
-      func
-        .runPromiseAsSeries(
-          Array.from(this.selectedTasks.values()).map(task => {
-            return this.unsubscribeFromTask(task.id)
-          })
-        )
-        .then(() => {
-          this.loading.tasksSubscription = false
-        })
+      this.unsubscribeFromTasks(Array.from(this.selectedTasks.keys()))
         .catch(err => {
           console.error(err)
+        })
+        .finally(() => {
           this.loading.tasksSubscription = false
-          this.errors.tasksSubscription = false
         })
     },
 
@@ -1528,13 +1593,9 @@ export default {
         )
         this.loading.setThumbnails = false
       } else {
-        func
-          .runPromiseAsSeries(
-            Array.from(this.selectedTasks.values()).map(task => {
-              return this.setLastTaskPreview(task.id)
-            })
-          )
-          .then(() => {
+        this.setTasksMainPreview(Array.from(this.selectedTasks.keys()))
+          .catch(console.error)
+          .finally(() => {
             this.loading.setThumbnails = false
           })
       }

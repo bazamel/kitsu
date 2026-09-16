@@ -26,7 +26,7 @@
       </div>
     </td>
     <td class="base-salary-header text-right entry-data">
-      {{ (personEntry.monthly_salary || 0).toLocaleString() }}
+      {{ (personEntry.monthly_salary || 0).toLocaleString(localeCode) }}
     </td>
     <td class="duration-header text-right entry-data">
       {{ personEntry.months_duration }}
@@ -36,15 +36,18 @@
       <td
         :key="personEntry.id + '-' + month"
         class="costs"
+        :class="{ negative: isOverEstimate(month) }"
         v-for="month in monthsBetweenStartAndNow"
       >
-        {{ personExpense?.[month.format('YYYY-MM')]?.toLocaleString() }}
+        {{
+          personExpense?.[month.format('YYYY-MM')]?.toLocaleString(localeCode)
+        }}
       </td>
       <td class="total-cost remaining-previsional" v-if="isShowingExpenses">
-        {{ personExpense.total.toLocaleString() }}
+        {{ personExpense.total.toLocaleString(localeCode) }}
       </td>
       <td class="total-cost" v-if="isShowingExpenses">
-        {{ personDonePrevisional.toLocaleString() }}
+        {{ personDonePrevisional.toLocaleString(localeCode) }}
       </td>
       <td
         class="total-cost gap"
@@ -54,7 +57,11 @@
         }"
         v-if="isShowingExpenses"
       >
-        {{ (personDonePrevisional - personExpense.total).toLocaleString() }}
+        {{
+          (personDonePrevisional - personExpense.total).toLocaleString(
+            localeCode
+          )
+        }}
       </td>
     </template>
     <td
@@ -64,31 +71,51 @@
         ? monthsBetweenNowAndEnd
         : monthsBetweenProductionDates"
     >
-      <input
-        class="input-editor"
-        type="number"
-        min="0"
-        step="1"
-        :value="getMonthCost(personEntry, month)"
-        @change="
-          $emit('add-person-exception', {
-            personEntry,
-            month,
-            value: $event.target.value
-          })
-        "
+      <div
+        class="cell-editor"
         v-if="personEntry.monthCosts[month.format('YYYY-MM')]"
-      />
+      >
+        <button
+          class="clear-exception"
+          type="button"
+          :title="$t('budget.clear_exception')"
+          @click="
+            $emit('add-person-exception', { personEntry, month, value: null })
+          "
+          v-if="hasException(personEntry, month)"
+        >
+          <x-icon :size="12" />
+        </button>
+        <input
+          class="input-editor"
+          :class="{ 'has-exception': hasException(personEntry, month) }"
+          type="number"
+          min="0"
+          step="1"
+          :value="getMonthCost(personEntry, month)"
+          @change="
+            $emit('add-person-exception', {
+              personEntry,
+              month,
+              value: $event.target.value
+            })
+          "
+        />
+      </div>
       <span v-else>&nbsp;</span>
     </td>
     <td class="total-cost remaining-previsional" v-if="isShowingExpenses">
-      {{ personRemainingPrevisional.toLocaleString() }}
+      {{ personRemainingPrevisional.toLocaleString(localeCode) }}
     </td>
     <td class="total-cost expense-and-remaining" v-if="isShowingExpenses">
-      {{ (personExpense.total + personRemainingPrevisional).toLocaleString() }}
+      {{
+        (personExpense.total + personRemainingPrevisional).toLocaleString(
+          localeCode
+        )
+      }}
     </td>
     <td class="total-cost">
-      {{ personEntry.total.toLocaleString() }}
+      {{ personEntry.total.toLocaleString(localeCode) }}
     </td>
     <td
       class="total-cost gap"
@@ -98,7 +125,7 @@
       }"
       v-if="isShowingExpenses"
     >
-      {{ personTotalGap.toLocaleString() }}
+      {{ personTotalGap.toLocaleString(localeCode) }}
     </td>
     <row-actions-cell
       @delete-clicked="$emit('delete-budget-entry', personEntry)"
@@ -108,7 +135,11 @@
 </template>
 
 <script setup>
-import { computed, defineProps } from 'vue'
+import { getMonthCost } from '@/lib/budget'
+import { localeCode } from '@/lib/lang'
+import { XIcon } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { useStore } from 'vuex'
 
 import PeopleAvatar from '@/components/widgets/PeopleAvatar.vue'
 import PeopleName from '@/components/widgets/PeopleName.vue'
@@ -119,6 +150,8 @@ defineEmits([
   'edit-budget-entry',
   'add-person-exception'
 ])
+
+const store = useStore()
 
 const props = defineProps({
   personEntry: {
@@ -149,10 +182,6 @@ const props = defineProps({
     type: Object,
     required: true
   },
-  personMap: {
-    type: Map,
-    required: true
-  },
   donePrevisional: {
     type: Object,
     required: true
@@ -162,6 +191,8 @@ const props = defineProps({
     required: true
   }
 })
+
+const personMap = computed(() => store.getters.personMap)
 
 const personDonePrevisional = computed(() => {
   return (
@@ -194,17 +225,22 @@ const personTotalGap = computed(() => {
     : 0
 })
 
-/* It gets the cost of a person for a given month, exceptions are
- * prioritized over the month costs.
+/* It tells whether the person has an explicit salary override for the given
+ * month, as opposed to the salary computed from the daily rate.
  */
-const getMonthCost = (personEntry, month) => {
+const hasException = (personEntry, month) => {
   const monthKey = typeof month === 'string' ? month : month.format('YYYY-MM')
-  personEntry.exceptions = personEntry.exceptions || {}
-  return (
-    parseInt(personEntry.exceptions[monthKey]) ||
-    parseInt(personEntry.monthCosts[monthKey]) ||
-    0
-  )
+  return personEntry.exceptions?.[monthKey] != null
+}
+
+/* It tells whether the real cost spent for the given month went over the
+ * estimated cost, so the cell can be flagged when showing real costs.
+ */
+const isOverEstimate = month => {
+  const monthKey = typeof month === 'string' ? month : month.format('YYYY-MM')
+  const realCost = personExpense.value?.[monthKey]
+  if (realCost == null) return false
+  return realCost > getMonthCost(props.personEntry, monthKey)
 }
 </script>
 

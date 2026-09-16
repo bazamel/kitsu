@@ -15,17 +15,23 @@
           />
 
           <div :class="{ timeline: true, 'timeline-blank': isTimelineBlank }">
-            <div
-              class="empty-state"
-              v-if="!loading.news && (!newsList || newsList.length === 0)"
-            >
+            <div class="empty-state" v-if="errors.news">
+              <alert-triangle-icon class="empty-icon" :size="48" />
+              <p class="empty-title">{{ $t('main.loading_error') }}</p>
+              <button class="empty-action" type="button" @click="init">
+                {{ $t('main.reload') }}
+              </button>
+            </div>
+
+            <news-skeleton v-else-if="loading.news" />
+
+            <div class="empty-state" v-else-if="newsList.length === 0">
               <newspaper-icon class="empty-icon" :size="48" />
               <p class="empty-title">{{ $t('news.no_news') }}</p>
               <p class="empty-hint">{{ $t('news.no_news_hint') }}</p>
             </div>
-            <news-skeleton v-if="loading.news" />
 
-            <template v-if="!loading.news">
+            <template v-else>
               <div
                 :key="dayList.length > 0 ? dayList[0].created_at : ''"
                 v-for="dayList in newsListByDay(timezone)"
@@ -52,6 +58,8 @@
                 />
               </div>
             </template>
+
+            <spinner class="load-more" v-if="loading.more" />
           </div>
         </div>
       </div>
@@ -77,7 +85,6 @@
       </button>
       <task-info
         :entity-type="currentEntityType"
-        :is-loading="loading.currentTask"
         :task="currentTask"
         with-actions
       />
@@ -92,8 +99,7 @@
  * infinite scrolling.
  */
 import { useHead } from '@unhead/vue'
-import { NewspaperIcon, XIcon } from 'lucide-vue-next'
-import moment from 'moment-timezone'
+import { AlertTriangleIcon, NewspaperIcon, XIcon } from 'lucide-vue-next'
 import {
   computed,
   getCurrentInstance,
@@ -108,18 +114,22 @@ import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 
 import { useTime } from '@/composables/time'
-import { formatFullDateWithRevertedTimezone } from '@/lib/time'
+import {
+  formatFullDateWithRevertedTimezone,
+  formatSimpleDate
+} from '@/lib/time'
 
 import NewsFilters from '@/components/pages/news/NewsFilters.vue'
 import NewsRow from '@/components/pages/news/NewsRow.vue'
 import NewsSkeleton from '@/components/pages/news/NewsSkeleton.vue'
 import TaskInfo from '@/components/sides/TaskInfo.vue'
+import Spinner from '@/components/widgets/Spinner.vue'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const store = useStore()
-const { timezone } = useTime()
+const { formatDay, timezone } = useTime()
 
 const instance = getCurrentInstance()
 const socket = instance.appContext.config.globalProperties.$socket
@@ -140,7 +150,7 @@ const taskStatusId = ref('')
 const taskTypeId = ref('')
 
 const errors = reactive({ news: false })
-const loading = reactive({ more: false, news: false, currentTask: true })
+const loading = reactive({ more: false, news: false })
 
 // Non-reactive scheduling/selection state.
 const newsRefs = new Map()
@@ -155,8 +165,10 @@ const setNewsRef = (id, el) => {
 // Computed
 
 const currentProduction = computed(() => store.getters.currentProduction)
+const personMap = computed(() => store.getters.personMap)
 const newsList = computed(() => store.getters.newsList)
 const newsListByDay = computed(() => store.getters.newsListByDay)
+const newsTotal = computed(() => store.getters.newsTotal)
 
 const isStudio = computed(() => !route.path.includes('productions'))
 
@@ -165,8 +177,10 @@ const currentEntityType = computed(
 )
 
 const isTimelineBlank = computed(
-  () => loading.news || !newsList.value || newsList.value.length === 0
+  () => loading.news || errors.news || newsList.value.length === 0
 )
+
+const hasMoreNews = computed(() => newsList.value.length < newsTotal.value)
 
 const isDrawerOpen = computed(() => Boolean(currentNewsId.value))
 
@@ -184,9 +198,22 @@ const params = computed(() => ({
   after: formatFullDateWithRevertedTimezone(after.value, timezone.value)
 }))
 
+const filterQuery = computed(() => ({
+  after: formatSimpleDate(after.value) || undefined,
+  before: formatSimpleDate(before.value) || undefined,
+  episode_id: episodeId.value || undefined,
+  person_id: person.value?.id,
+  preview_mode:
+    previewMode.value !== 'comments' ? previewMode.value : undefined,
+  task_status_id: taskStatusId.value || undefined,
+  task_type_id: taskTypeId.value || undefined
+}))
+
 // Functions
 
-const formatDay = date => moment.tz(date, 'UTC').tz(timezone.value).format('LL')
+// Query dates carry the day only. Rebuild them at local midnight: the round
+// trip goes back out through formatSimpleDate, which formats in local time.
+const parseQueryDate = value => (value ? new Date(`${value}T00:00:00`) : null)
 
 const setScrollPosition = scrollPosition => {
   if (body.value) {
@@ -220,14 +247,12 @@ const closeTask = () => {
 }
 
 const onNewsSelected = news => {
-  loading.currentTask = true
   const index = newsList.value.findIndex(n => n.id === news.id)
   if (lastSelection !== index) {
     lastSelection = index
     store
       .dispatch('loadTask', { taskId: news.task_id })
       .then(task => {
-        loading.currentTask = false
         currentTask.value = task
         currentNewsId.value = news.id
       })
@@ -245,12 +270,10 @@ const init = () => {
     loading.news = true
     errors.news = false
     currentTask.value = null
-    router.push({
-      query: {
-        task_status_id: params.value.task_status_id,
-        task_type_id: params.value.task_type_id
-      }
-    })
+    // replace, not push: filter changes must not stack history entries the
+    // back button then has to walk through.
+    router.replace({ query: filterQuery.value })
+    const loadedParams = JSON.stringify(params.value)
     store
       .dispatch('loadNews', params.value)
       .then(() => {
@@ -261,17 +284,29 @@ const init = () => {
         loading.news = false
         errors.news = true
       })
+      .finally(() => {
+        // A production or filter change during the load was dropped by the
+        // guard above: load again for it.
+        if (JSON.stringify(params.value) !== loadedParams) init()
+      })
   }
 }
 
 const loadFollowingNews = () => {
-  if (!loading.more && !loading.news) {
-    loading.more = true
-    currentPage.value += 1
-    store.dispatch('loadMoreNews', params.value).then(() => {
+  if (loading.more || loading.news || !hasMoreNews.value) return
+  loading.more = true
+  currentPage.value += 1
+  store
+    .dispatch('loadMoreNews', params.value)
+    .catch(err => {
+      console.error(err)
+      // Give the failed page back so the next scroll retries it instead of
+      // leaving a hole in the feed.
+      currentPage.value -= 1
+    })
+    .finally(() => {
       loading.more = false
     })
-  }
 }
 
 const onBodyScroll = event => {
@@ -358,7 +393,6 @@ watch(person, init)
 watch(before, init)
 watch(after, init)
 watch(episodeId, init)
-watch(() => route.fullPath, init)
 
 watch(previewMode, value => {
   localStorage.setItem('news:preview-mode', value)
@@ -378,18 +412,22 @@ watch(taskStatusId, value => {
 // Lifecycle
 
 onMounted(() => {
+  const query = route.query
   silent = true
-  previewMode.value = localStorage.getItem('news:preview-mode') || 'comments'
-  taskTypeId.value = localStorage.getItem('news:task-type-id') || ''
-  if (route.query?.task_type_id) {
-    taskTypeId.value = route.query.task_type_id
-  }
-  taskStatusId.value = localStorage.getItem('news:task-status-id') || ''
-  if (route.query?.task_status_id) {
-    taskStatusId.value = route.query.task_status_id
-  }
-  before.value = null
-  after.value = null
+  previewMode.value =
+    query.preview_mode ||
+    localStorage.getItem('news:preview-mode') ||
+    'comments'
+  taskTypeId.value =
+    query.task_type_id || localStorage.getItem('news:task-type-id') || ''
+  taskStatusId.value =
+    query.task_status_id || localStorage.getItem('news:task-status-id') || ''
+  episodeId.value = query.episode_id || ''
+  person.value = query.person_id
+    ? (personMap.value.get(query.person_id) ?? null)
+    : null
+  before.value = parseQueryDate(query.before)
+  after.value = parseQueryDate(query.after)
   silent = false
 
   window.addEventListener('keydown', onKeyDown, false)
@@ -555,6 +593,23 @@ useHead({
 .empty-hint {
   margin: 0;
   max-width: 380px;
+}
+
+.empty-action {
+  background: var(--background-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+  padding: 0.4em 1.2em;
+
+  &:hover {
+    background: var(--background-hover);
+  }
+}
+
+.load-more {
+  padding: 1em 0;
 }
 
 .side-column {

@@ -8,7 +8,10 @@
       <p class="description">
         {{ $t('playlists.share_modal.description') }}
       </p>
-      <p class="empty-links" v-if="shareLinks.length === 0">
+      <div class="has-text-centered" v-if="loading.links && !shareLinks.length">
+        <spinner />
+      </div>
+      <p class="empty-links" v-else-if="!shareLinks.length">
         {{ $t('playlists.share_modal.no_links') }}
       </p>
       <div v-else class="existing-links">
@@ -210,16 +213,16 @@ import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.min.css'
 
 import { useTime } from '@/composables/time'
-import { formatSimpleDate } from '@/lib/time'
-import playlistsApi from '@/store/api/playlists'
+import { formatDisplayDate, formatSimpleDate } from '@/lib/time'
 
 import BaseModal from '@/components/modals/BaseModal.vue'
 import ButtonSimple from '@/components/widgets/ButtonSimple.vue'
 import Checkbox from '@/components/widgets/Checkbox.vue'
 import DateField from '@/components/widgets/DateField.vue'
+import Spinner from '@/components/widgets/Spinner.vue'
 
 const { t } = useI18n()
-const { tomorrow } = useTime()
+const { tomorrow, dateFormat } = useTime()
 const store = useStore()
 
 const props = defineProps({
@@ -232,7 +235,7 @@ const emit = defineEmits(['cancel', 'links-updated'])
 const shareLinks = ref([])
 const expirationDate = ref(null)
 const canComment = ref(true)
-const loading = reactive({ create: false })
+const loading = reactive({ links: false, create: false })
 const errors = reactive({ create: false })
 
 const openInviteToken = ref(null)
@@ -326,11 +329,11 @@ const sendInvite = async token => {
   state.success = false
   state.feedback = ''
   try {
-    const response = await playlistsApi.sendShareInvitations(
-      props.playlist.id,
+    const response = await store.dispatch('sendPlaylistShareInvitations', {
+      playlistId: props.playlist.id,
       token,
       data
-    )
+    })
     state.success = true
     state.feedback = t('playlists.share_modal.invite_sent', {
       count: response?.sent?.length || 0
@@ -352,13 +355,19 @@ const buildShareUrl = token => {
 }
 
 const loadLinks = async () => {
+  loading.links = true
   try {
-    const links = await playlistsApi.getShareLinks(props.playlist.id)
+    const links = await store.dispatch(
+      'loadPlaylistShareLinks',
+      props.playlist.id
+    )
     shareLinks.value = links
     links.forEach(link => ensureInviteState(link.token))
     emit('links-updated', links.length)
   } catch (err) {
     console.error(err)
+  } finally {
+    loading.links = false
   }
 }
 
@@ -381,9 +390,12 @@ const createLink = async () => {
     const expDate = expirationDate.value
       ? formatSimpleDate(expirationDate.value)
       : undefined
-    await playlistsApi.createShareLink(props.playlist.id, {
-      expiration_date: expDate,
-      can_comment: canComment.value
+    await store.dispatch('createPlaylistShareLink', {
+      playlistId: props.playlist.id,
+      data: {
+        expiration_date: expDate,
+        can_comment: canComment.value
+      }
     })
     await loadLinks()
     hideCreateForm()
@@ -400,7 +412,10 @@ const askRevoke = token => {
 
 const confirmRevoke = async token => {
   try {
-    await playlistsApi.revokeShareLink(props.playlist.id, token)
+    await store.dispatch('revokePlaylistShareLink', {
+      playlistId: props.playlist.id,
+      token
+    })
     confirmingRevoke.value = null
     await loadLinks()
   } catch (err) {
@@ -414,7 +429,7 @@ const copyLink = token => {
 
 const formatDate = dateStr => {
   if (!dateStr) return ''
-  return new Date(dateStr).toLocaleDateString()
+  return formatDisplayDate(dateStr, dateFormat.value)
 }
 
 onMounted(() => {
@@ -423,7 +438,7 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-:deep(h1.title) {
+:deep(h2.title) {
   margin-bottom: 0em !important;
 }
 

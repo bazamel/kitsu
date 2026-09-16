@@ -18,14 +18,14 @@
               @click="() => (modals.isBuildFilterDisplayed = true)"
             />
             <div class="filler"></div>
-            <div class="flexrow flexrow-item" v-if="!isCurrentUserClient">
+            <div class="flexrow flexrow-item">
               <combobox-department
                 class="combobox-department flexrow-item"
                 :selectable-departments="selectableDepartments('Episode')"
                 :display-all-and-my-departments="true"
                 rounded
                 v-model="selectedDepartment"
-                v-if="departments.length > 0"
+                v-if="departments.length > 0 && !isCurrentUserClient"
               />
               <combobox-display-options
                 class="flexrow-item"
@@ -36,7 +36,7 @@
             <div class="flexrow" v-if="isCurrentUserManager">
               <button-simple
                 class="flexrow-item"
-                :text="$t('episodes.new_episode')"
+                :text="$t('episodes.new_episodes')"
                 icon="plus"
                 @click="showNewModal"
               />
@@ -47,6 +47,7 @@
             <search-query-list
               :queries="episodeSearchQueries"
               type="episode"
+              :production-id="currentProduction?.id"
               @remove-search="removeSearchQuery"
               v-if="!isEpisodesLoading && !initialLoading"
             />
@@ -66,6 +67,7 @@
           :is-error="isEpisodesLoadingError"
           :validation-columns="episodeValidationColumns"
           :department-filter="departmentFilter"
+          @add-episodes="showNewModal"
           @add-metadata="onAddMetadataClicked"
           @change-sort="onChangeSortClicked"
           @create-tasks="showCreateTasksModal"
@@ -133,13 +135,15 @@
       :active="modals.isCreateTasksDisplayed"
       :is-loading="loading.creatingTasks"
       :is-loading-stay="loading.creatingTasksStay"
+      :is-loading-all="loading.creatingAllTasks"
       :is-error="errors.creatingTasks"
       :title="$t('tasks.create_tasks_episode')"
-      :text="$t('tasks.create_tasks_episode_explaination')"
+      :text="$t('tasks.create_tasks_episode_explanation')"
       :error-text="$t('tasks.create_tasks_episode_failed')"
       @cancel="hideCreateTasksModal"
       @confirm="confirmCreateTasks"
       @confirm-and-stay="confirmCreateTasksAndStay"
+      @confirm-all-missing="confirmCreateAllMissingTasks"
     />
 
     <add-metadata-modal
@@ -283,6 +287,7 @@ export default {
         addThumbnails: false,
         creatingTasks: false,
         creatingTasksStay: false,
+        creatingAllTasks: false,
         del: false,
         deleteAllTasks: false,
         deleteMetadata: false,
@@ -339,7 +344,8 @@ export default {
     if (
       this.episodeMap.size < 1 ||
       this.episodeValidationColumns.length === 0 ||
-      this.episodeMap.values().next().project_id !== this.currentProduction.id
+      this.episodeMap.values().next().value?.project_id !==
+        this.currentProduction.id
     ) {
       this.loadEpisodesWithTasks()
         .then(() => {
@@ -371,7 +377,6 @@ export default {
       'episodeSorting',
       'episodeSearchQueries',
       'isCurrentUserClient',
-      'isCurrentUserManager',
       'isEpisodeDescription',
       'isEpisodeEstimation',
       'isEpisodeTime',
@@ -385,6 +390,9 @@ export default {
       'taskTypeMap',
       'user'
     ]),
+    ...mapGetters({
+      isCurrentUserManager: 'isCurrentUserProductionManager'
+    }),
 
     renderColumns() {
       const collection = [...this.dataMatchers, ...this.optionalColumns]
@@ -498,7 +506,7 @@ export default {
           headers.push(this.$t('main.estimation_short'))
         }
         this.episodeValidationColumns.forEach(taskTypeId => {
-          headers.push(this.taskTypeMap.get(taskTypeId).name)
+          headers.push(this.taskTypeMap.get(taskTypeId)?.name || '')
           headers.push('Assignations')
         })
         csv.buildCsvFile(name, [headers].concat(episodeLines))
@@ -615,10 +623,6 @@ export default {
 
 .page-header {
   margin-bottom: 1em;
-}
-
-.flexcolumn {
-  align-items: flex-start;
 }
 
 .episodes {

@@ -25,7 +25,11 @@
               'is-primary': true,
               'is-loading': isLoading
             }"
+            role="button"
+            tabindex="0"
             @click="runConfirmation"
+            @keydown.enter.prevent="runConfirmation"
+            @keydown.space.prevent="runConfirmation"
           >
             {{ $t('main.apply') }}
           </a>
@@ -46,7 +50,11 @@
               'is-primary': true,
               'is-loading': isLoading
             }"
+            role="button"
+            tabindex="0"
             @click="runUpdateLatest"
+            @keydown.enter.prevent="runUpdateLatest"
+            @keydown.space.prevent="runUpdateLatest"
           >
             {{ $t('main.apply') }}
           </a>
@@ -61,7 +69,7 @@
     </p>
 
     <p class="error has-text-right info-message" v-if="isError">
-      {{ $t('playlist.change_task_type_fails') }}
+      {{ $t('playlists.change_task_type_error') }}
     </p>
   </base-modal>
 </template>

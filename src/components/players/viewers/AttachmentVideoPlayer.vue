@@ -1,22 +1,21 @@
 <template>
   <div class="attachment-video-player">
-    <div
-      class="attachment-video"
-      :class="{ 'is-paused': !isPlaying }"
-      ref="wrapperEl"
-    >
-      <a
-        class="flexrow attachment-fallback"
-        :href="downloadHref || src"
-        :title="name"
-        target="_blank"
-        v-if="hasError"
-      >
-        <paperclip-icon class="flexrow-item attachment-icon icon-1x" />
-        <span class="flexrow-item">{{ name }}</span>
-      </a>
+    <div class="attachment-error" v-if="hasError">
+      <video-off-icon class="attachment-error-icon" :size="18" />
+      <span class="attachment-error-text">
+        <span class="attachment-error-label">
+          {{ $t('comments.player.video_unavailable') }}
+        </span>
+        <span class="attachment-error-name" v-if="name">{{ name }}</span>
+      </span>
+    </div>
 
-      <template v-else>
+    <template v-else>
+      <div
+        class="attachment-video"
+        :class="{ 'is-paused': !isPlaying }"
+        ref="wrapperEl"
+      >
         <video
           class="attachment-video-el"
           ref="mediaEl"
@@ -77,14 +76,11 @@
             <download-icon :size="14" />
           </a>
         </div>
-      </template>
-    </div>
-    <span
-      class="attachment-name"
-      :title="name"
-      v-if="showName && name && !hasError"
-      >{{ name }}</span
-    >
+      </div>
+      <span class="attachment-name" :title="name" v-if="showName && name">{{
+        name
+      }}</span>
+    </template>
   </div>
 </template>
 
@@ -92,14 +88,19 @@
 import {
   DownloadIcon,
   MaximizeIcon,
-  PaperclipIcon,
   PauseIcon,
   PlayIcon,
+  VideoOffIcon,
   Volume2Icon,
   VolumeXIcon
 } from 'lucide-vue-next'
 import { ref } from 'vue'
 
+import {
+  exitDocumentFullScreen,
+  getFullScreenElement,
+  requestFullScreen
+} from '@/composables/fullScreen'
 import { useMediaPlayer } from '@/composables/players/mediaPlayer'
 
 defineProps({
@@ -131,10 +132,13 @@ const onSeek = event => {
 const toggleFullscreen = () => {
   const el = wrapperEl.value
   if (!el) return
-  if (document.fullscreenElement) {
-    document.exitFullscreen?.()
+  // Compare against OUR element: with the player itself in fullscreen
+  // (the comments column lives inside it), a truthy-only check exited
+  // the app fullscreen instead of fullscreening the attachment.
+  if (getFullScreenElement() === el) {
+    exitDocumentFullScreen()
   } else {
-    el.requestFullscreen?.()
+    requestFullScreen(el)
   }
 }
 
@@ -180,17 +184,35 @@ const onError = () => {
 
 // In fullscreen the wrapper fills the screen; let the video grow to fit it
 // (keeping aspect ratio) instead of staying capped at its inline size.
-.attachment-video:fullscreen {
+// Safari below 16.4 only knows the prefixed pseudo-class, and one unknown
+// selector drops the whole rule: the two variants stay in separate rules.
+@mixin fullscreen-wrapper {
   height: 100%;
   max-width: none;
   width: 100%;
 }
 
-.attachment-video:fullscreen .attachment-video-el {
+@mixin fullscreen-video {
   height: 100%;
   max-height: none;
   object-fit: contain;
   width: 100%;
+}
+
+.attachment-video:fullscreen {
+  @include fullscreen-wrapper;
+}
+
+.attachment-video:-webkit-full-screen {
+  @include fullscreen-wrapper;
+}
+
+.attachment-video:fullscreen .attachment-video-el {
+  @include fullscreen-video;
+}
+
+.attachment-video:-webkit-full-screen .attachment-video-el {
+  @include fullscreen-video;
 }
 
 // YouTube-style overlay: hidden while playing, revealed on hover and on pause.
@@ -250,7 +272,51 @@ const onError = () => {
   white-space: nowrap;
 }
 
-.attachment-fallback {
+.attachment-error {
+  align-items: center;
+  background: var(--background-page);
+  border: 1px solid var(--border-alt);
+  border-radius: 8px;
   color: var(--text);
+  display: flex;
+  gap: 0.6em;
+  max-width: 32em;
+  padding: 0.6em 0.8em;
+}
+
+.attachment-error-icon {
+  color: var(--text-alt);
+  flex-shrink: 0;
+}
+
+.dark .attachment-error {
+  border-color: #565a62;
+}
+
+.dark .attachment-error-icon,
+.dark .attachment-error-name {
+  opacity: 0.7;
+}
+
+.attachment-error-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.1em;
+  margin-left: 0.3em;
+  min-width: 0;
+}
+
+.attachment-error-label {
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.attachment-error-name {
+  color: var(--text-alt);
+  font-size: 0.8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

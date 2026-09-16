@@ -19,16 +19,16 @@
               @click="() => (modals.isBuildFilterDisplayed = true)"
             />
             <div class="filler"></div>
-            <combobox-department
-              class="combobox-department flexrow-item"
-              :selectable-departments="selectableDepartments('Edit')"
-              :display-all-and-my-departments="true"
-              :width="230"
-              rounded
-              v-model="selectedDepartment"
-              v-if="departments.length > 0"
-            />
-            <div class="flexrow flexrow-item" v-if="!isCurrentUserClient">
+            <div class="flexrow flexrow-item">
+              <combobox-department
+                class="combobox-department flexrow-item"
+                :selectable-departments="selectableDepartments('Edit')"
+                :display-all-and-my-departments="true"
+                :width="230"
+                rounded
+                v-model="selectedDepartment"
+                v-if="departments.length > 0 && !isCurrentUserClient"
+              />
               <combobox-display-options
                 class="flexrow-item"
                 :type="type"
@@ -56,7 +56,7 @@
               />
               <button-simple
                 class="flexrow-item"
-                :text="$t('edits.new_edit')"
+                :text="$t('edits.new_edits')"
                 icon="plus"
                 @click="showNewModal"
               />
@@ -67,6 +67,7 @@
             <search-query-list
               :queries="editSearchQueries"
               type="edit"
+              :production-id="currentProduction?.id"
               @remove-search="removeSearchQuery"
               v-if="!isEditsLoading && !initialLoading"
             />
@@ -86,6 +87,7 @@
           :validation-columns="editValidationColumns"
           :department-filter="departmentFilter"
           :display-settings="displaySettings"
+          @add-edits="showNewModal"
           @add-metadata="onAddMetadataClicked"
           @change-sort="onChangeSortClicked"
           @create-tasks="showCreateTasksModal"
@@ -203,13 +205,15 @@
       :active="modals.isCreateTasksDisplayed"
       :is-loading="loading.creatingTasks"
       :is-loading-stay="loading.creatingTasksStay"
+      :is-loading-all="loading.creatingAllTasks"
       :is-error="errors.creatingTasks"
       :title="$t('tasks.create_tasks_edit')"
-      :text="$t('tasks.create_tasks_edit_explaination')"
+      :text="$t('tasks.create_tasks_edit_explanation')"
       :error-text="$t('tasks.create_tasks_edit_failed')"
       @cancel="hideCreateTasksModal"
       @confirm="confirmCreateTasks"
       @confirm-and-stay="confirmCreateTasksAndStay"
+      @confirm-all-missing="confirmCreateAllMissingTasks"
     />
 
     <add-metadata-modal
@@ -348,6 +352,7 @@ export default {
         addThumbnails: false,
         creatingTasks: false,
         creatingTasksStay: false,
+        creatingAllTasks: false,
         deleteAllTasks: false,
         deleteMetadata: false,
         edit: false,
@@ -405,6 +410,7 @@ export default {
     } else {
       if (!this.isEditsLoading) this.initialLoading = false
       finalize()
+      this.reloadEpisodeEditsIfNeeded()
     }
   },
 
@@ -418,6 +424,7 @@ export default {
       'editMap',
       'editFilledColumns',
       'editsCsvFormData',
+      'editsLoadingKey',
       'editSearchQueries',
       'editSearchText',
       'editValidationColumns',
@@ -427,7 +434,6 @@ export default {
       'episodes',
       'openProductions',
       'isCurrentUserClient',
-      'isCurrentUserManager',
       'isEditDescription',
       'isEditEstimation',
       'isEditTime',
@@ -441,6 +447,9 @@ export default {
       'taskTypeMap',
       'user'
     ]),
+    ...mapGetters({
+      isCurrentUserManager: 'isCurrentUserProductionManager'
+    }),
 
     renderColumns() {
       const collection = [...this.dataMatchers, ...this.optionalColumns]
@@ -457,8 +466,13 @@ export default {
     },
 
     filteredEdits() {
+      // Build the lookup from the full edit cache, not the filtered display
+      // list, so the import creation check sees every edit.
+      // The cache Map is not reactive: depend on displayedEdits (updated
+      // by the same mutations) to invalidate this computed.
+      this.displayedEdits // eslint-disable-line no-unused-expressions
       const edits = {}
-      this.displayedEdits.forEach(edit => {
+      this.editMap.forEach(edit => {
         let editKey = ''
         if (
           this.isTVShow &&
@@ -576,6 +590,22 @@ export default {
         if (err) console.error(err)
         this.initialLoading = false
       })
+    },
+
+    // The topbar sets the current episode before this page instance exists, so
+    // the currentEpisode watcher below cannot fire on a fresh mount: without
+    // this check the cache of the episode left behind is displayed as is.
+    reloadEpisodeEditsIfNeeded() {
+      const scope = this.isTVShow ? (this.currentEpisode?.id ?? '') : ''
+      if (
+        !this.currentProduction ||
+        this.editsLoadingKey === `${this.currentProduction.id}/${scope}`
+      ) {
+        return
+      }
+      this.$refs['edit-search-field']?.setValue('')
+      this.$store.commit('SET_EDIT_LIST_SCROLL_POSITION', 0)
+      this.reset()
     },
 
     resetEditModal() {
@@ -699,7 +729,7 @@ export default {
           headers.push(this.$t('main.estimation_short'))
         }
         this.editValidationColumns.forEach(taskTypeId => {
-          headers.push(this.taskTypeMap.get(taskTypeId).name)
+          headers.push(this.taskTypeMap.get(taskTypeId)?.name || '')
           headers.push('Assignations')
         })
         csv.buildCsvFile(name, [headers].concat(editLines))
@@ -743,14 +773,7 @@ export default {
     },
 
     currentSection() {
-      if (
-        (this.isTVShow && this.edits.length === 0) ||
-        this.edits[0].episode_id !== this.currentEpisode.id
-      ) {
-        this.$refs['edit-search-field'].setValue('')
-        this.$store.commit('SET_EDIT_LIST_SCROLL_POSITION', 0)
-        this.reset()
-      }
+      this.reloadEpisodeEditsIfNeeded()
     },
 
     isEditsLoading() {
@@ -784,7 +807,7 @@ export default {
       }
     }
     return {
-      title: `${this.currentProduction.name} ${this.$t('edits.title')} - Kitsu`
+      title: `${this.currentProduction ? this.currentProduction.name : ''} ${this.$t('edits.title')} - Kitsu`
     }
   }
 }
@@ -800,10 +823,6 @@ export default {
 }
 
 .level {
-  align-items: flex-start;
-}
-
-.flexcolumn {
   align-items: flex-start;
 }
 

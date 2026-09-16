@@ -1,4 +1,5 @@
 import departmentsApi from '@/store/api/departments'
+import { sortByName } from '@/lib/sorting'
 import {
   LOAD_DEPARTMENTS_END,
   EDIT_DEPARTMENTS_END,
@@ -11,6 +12,7 @@ const initialState = {
 }
 
 const state = { ...initialState }
+// Mutate departmentMap in place, never reassign it (see tasktypes.js).
 const cache = {
   departmentMap: new Map()
 }
@@ -84,11 +86,10 @@ const actions = {
 const mutations = {
   [LOAD_DEPARTMENTS_END](state, departments) {
     state.departments = departments.sort((a, b) => a.name.localeCompare(b.name))
-    const departmentMap = new Map()
+    cache.departmentMap.clear()
     departments.forEach(department => {
-      departmentMap.set(department.id, department)
+      cache.departmentMap.set(department.id, department)
     })
-    cache.departmentMap = departmentMap
   },
 
   [EDIT_DEPARTMENTS_END](state, newDepartment) {
@@ -99,6 +100,7 @@ const mutations = {
       state.departments.push(newDepartment)
     }
     cache.departmentMap.set(newDepartment.id, newDepartment)
+    state.departments = sortByName(state.departments)
   },
 
   [DELETE_DEPARTMENTS_END](state, departmentToDelete) {
@@ -113,6 +115,7 @@ const mutations = {
 
   [RESET_ALL](state) {
     Object.assign(state, { ...initialState })
+    cache.departmentMap.clear()
   }
 }
 
@@ -120,5 +123,6 @@ export default {
   state,
   getters,
   actions,
-  mutations
+  mutations,
+  cache
 }

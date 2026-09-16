@@ -6,7 +6,7 @@
           <img class="logo-image" :src="organisationLogoPath" alt="" />
         </div>
         <div class="logo-frame logo-frame--empty" v-else>
-          <span class="logo-initial">{{ logoInitial }}</span>
+          <img class="logo-image" src="@/assets/kitsu.png" alt="Kitsu" />
         </div>
         <h1 class="settings-name">
           {{ organisation.name || $t('main.studio') }}
@@ -142,7 +142,7 @@
 
 <script setup>
 import { useHead } from '@unhead/vue'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStore } from 'vuex'
 
@@ -186,15 +186,10 @@ const modals = reactive({
   avatar: false
 })
 
-const organisationLogoPath = ref('')
-
 // Computed
 
 const organisation = computed(() => store.getters.organisation)
-
-const logoInitial = computed(
-  () => organisation.value?.name?.slice(0, 1).toUpperCase() || '?'
-)
+const organisationLogoPath = computed(() => store.getters.organisationLogoPath)
 
 // Functions
 
@@ -240,13 +235,7 @@ const uploadAvatarFile = formData => {
   errors.saveAvatar = false
   store
     .dispatch('uploadOrganisationLogo', formData)
-    .then(() => {
-      setTimeout(() => {
-        modals.avatar = false
-        const timestamp = Date.now()
-        organisationLogoPath.value = `/api/pictures/thumbnails/organisations/${organisation.value.id}.png?t=${timestamp}`
-      }, 500)
-    })
+    .then(hideAvatarModal)
     .catch(err => {
       console.error(err)
       errors.saveAvatar = true
@@ -295,12 +284,6 @@ watch(
   },
   { immediate: true }
 )
-
-// Lifecycle
-
-onMounted(() => {
-  organisationLogoPath.value = `/api/pictures/thumbnails/organisations/${organisation.value.id}.png`
-})
 
 // Head
 
@@ -360,12 +343,6 @@ useHead({ title: computed(() => `${t('settings.title')} - Kitsu`) })
 
 .logo-frame--empty {
   border-style: dashed;
-}
-
-.logo-initial {
-  color: var(--text-alt);
-  font-size: 3rem;
-  font-weight: 600;
 }
 
 .settings-name {

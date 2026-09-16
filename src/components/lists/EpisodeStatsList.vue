@@ -12,7 +12,7 @@
             <th
               scope="col"
               class="validation validation-cell"
-              :key="taskTypeMap.get(columnId).id"
+              :key="columnId"
               v-for="columnId in validationColumns"
             >
               <div
@@ -21,18 +21,18 @@
               >
                 <router-link
                   class="flexrow-item ellipsis"
-                  :title="taskTypeMap.get(columnId).name"
+                  :title="taskTypeMap.get(columnId)?.name"
                   :to="taskTypePath(columnId)"
                   v-if="!isCurrentUserClient"
                 >
-                  {{ taskTypeMap.get(columnId).name }}
+                  {{ taskTypeMap.get(columnId)?.name }}
                 </router-link>
                 <span
                   class="flexrow-item ellipsis"
-                  :title="taskTypeMap.get(columnId).name"
+                  :title="taskTypeMap.get(columnId)?.name"
                   v-else
                 >
-                  {{ taskTypeMap.get(columnId).name }}
+                  {{ taskTypeMap.get(columnId)?.name }}
                 </span>
               </div>
             </th>
@@ -73,7 +73,13 @@
 
           <template v-for="entry in entries" :key="entry.id">
             <tr class="datatable-row">
-              <td class="expander" @click="toggleExpanded(entry.id)">
+              <td
+                class="expander"
+                role="button"
+                tabindex="0"
+                @click="toggleExpanded(entry.id)"
+                @keydown.enter.prevent="toggleExpanded(entry.id)"
+              >
                 <chevron-right-icon
                   v-if="isRetakes && expanded[entry.id] !== true"
                 />
@@ -188,28 +194,15 @@
       :with-actions="false"
     />
 
-    <div
-      class="has-text-centered"
-      v-if="!isLoading && isEmptyList && !isCurrentUserClient"
-    >
-      <p class="info">
-        <img src="../../assets/illustrations/empty_shot.png" />
-      </p>
-      <p class="info">{{ $t('episodes.empty_list') }}</p>
-    </div>
-    <div
-      class="has-text-centered"
-      v-if="!isLoading && isEmptyList && isCurrentUserClient"
-    >
-      <p class="info">
-        <img src="../../assets/illustrations/empty_shot.png" />
-      </p>
-      <p class="info">{{ $t('episodes.empty_list_client') }}</p>
-    </div>
+    <empty-list
+      :text="$t('episodes.empty_list')"
+      :read-only-text="$t('episodes.empty_list_read_only')"
+      v-if="!isLoading && isEmptyList"
+    />
 
     <p class="has-text-centered nb-episodes" v-if="!isEmptyList">
       {{ displayedEpisodesLength }}
-      {{ $tc('episodes.number', displayedEpisodesLength) }}
+      {{ $t('episodes.number', { count: displayedEpisodesLength }) }}
     </p>
   </div>
 </template>
@@ -221,12 +214,14 @@ import { mapGetters } from 'vuex'
 import { entityListMixin } from '@/components/mixins/entity_list'
 import { range } from '@/lib/time'
 import {
-  getChartColors,
+  aggregateRetakeStats,
+  aggregateStats,
   getChartData,
   getChartRetakeCount,
   getRetakeChartData
 } from '@/lib/stats'
 
+import EmptyList from '@/components/widgets/EmptyList.vue'
 import StatsCell from '@/components/cells/StatsCell.vue'
 import TableInfo from '@/components/widgets/TableInfo.vue'
 
@@ -238,6 +233,7 @@ export default {
   components: {
     ChevronDownIcon,
     ChevronRightIcon,
+    EmptyList,
     StatsCell,
     TableInfo
   },
@@ -316,6 +312,18 @@ export default {
 
     isRetakes() {
       return this.dataMode === 'retakes'
+    },
+
+    // The "all" row aggregates the displayed entries only, so it stays
+    // consistent when episodes are filtered (e.g. "only running").
+    displayedEntriesStats() {
+      const entryIds = this.entries.map(entry => entry.id)
+      return { all: aggregateStats(this.episodeStats, entryIds) }
+    },
+
+    displayedEntriesRetakeStats() {
+      const entryIds = this.entries.map(entry => entry.id)
+      return { all: aggregateRetakeStats(this.episodeRetakeStats, entryIds) }
     }
   },
 
@@ -324,20 +332,21 @@ export default {
       if (this.isRetakes) {
         return ['#ff3860', '#6f727a', '#22d160']
       } else {
-        return getChartColors(this.episodeStats, entryId, columnId)
+        return this.chartData(entryId, columnId).map(data => data[2])
       }
     },
 
     chartData(entryId, columnId, dataType = 'count') {
       if (this.isRetakes) {
-        return getRetakeChartData(
-          this.episodeRetakeStats,
-          entryId,
-          columnId,
-          dataType
-        )
+        const stats =
+          entryId === 'all'
+            ? this.displayedEntriesRetakeStats
+            : this.episodeRetakeStats
+        return getRetakeChartData(stats, entryId, columnId, dataType)
       } else {
-        return getChartData(this.episodeStats, entryId, columnId, dataType)
+        const stats =
+          entryId === 'all' ? this.displayedEntriesStats : this.episodeStats
+        return getChartData(stats, entryId, columnId, dataType)
       }
     },
 
@@ -494,9 +503,5 @@ td.name {
 
 th.actions {
   padding: 0.4em;
-}
-
-.info img {
-  max-width: 80vh;
 }
 </style>

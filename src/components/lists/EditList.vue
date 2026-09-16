@@ -25,7 +25,10 @@
         @toggle-stick="metadataStickColumnClicked($event)"
       />
 
-      <table class="datatable">
+      <table
+        class="datatable"
+        :class="{ 'expand-task-types': displaySettings.fullTaskTypeNames }"
+      >
         <thead class="datatable-head" id="datatable-edit" v-columns-resizable>
           <tr>
             <th scope="col" class="episode" ref="th-episode" v-if="isTVShow">
@@ -185,6 +188,7 @@
                   estimation: !isEditEstimation
                 }"
                 namespace="edits"
+                :production-id="currentProduction?.id"
                 v-model="metadataDisplayHeaders"
                 v-model:is-open="columnSelectorDisplayed"
                 v-if="displaySettings.showInfos"
@@ -340,6 +344,7 @@
                   :row-x="i"
                   :selected="isSelected(i, j)"
                   :sticked="true"
+                  :task-href="taskHref(edit.validations.get(columnId))"
                   :task-test="taskMap.get(edit.validations.get(columnId))"
                   @select="infos => onTaskSelected(infos, true)"
                   @unselect="infos => onTaskUnselected(infos, true)"
@@ -417,6 +422,7 @@
                   :key="`${columnId}-${edit.id}`"
                   :column="taskTypeMap.get(columnId)"
                   :entity="edit"
+                  :task-href="taskHref(edit.validations?.get(columnId))"
                   :task-test="
                     taskMap.get(
                       edit.validations ? edit.validations.get(columnId) : null
@@ -452,57 +458,37 @@
 
     <table-info :is-loading="isLoading" :is-error="isError" big-cells />
 
-    <div
-      class="has-text-centered"
-      v-if="isEmptyList && !isCurrentUserClient && !isLoading"
-    >
-      <p class="info">
-        <img src="../../assets/illustrations/empty_edit.png" />
-      </p>
-      <p class="info">{{ $t('edits.empty_list') }}</p>
-      <button-simple
-        class="level-item big-button"
-        :text="$t('edits.new_edits')"
-        @click="$emit('add-edits')"
-      />
-    </div>
-    <div
-      class="has-text-centered"
-      v-if="isEmptyList && isCurrentUserClient && !isLoading"
-    >
-      <p class="info">
-        <img src="../../assets/illustrations/empty_edit.png" />
-      </p>
-      <p class="info">{{ $t('edits.empty_list_client') }}</p>
-    </div>
+    <empty-list
+      :text="$t('edits.empty_list')"
+      :read-only-text="$t('edits.empty_list_read_only')"
+      :button-text="$t('edits.new_edits')"
+      @create="$emit('add-edits')"
+      v-if="isEmptyList && !isLoading"
+    />
 
     <p class="has-text-centered nb-edits" v-if="!isEmptyList && !isLoading">
       {{ displayedEditsLength }}
-      {{ $tc('edits.number', displayedEditsLength) }}
+      {{ $t('edits.number', { count: displayedEditsLength }) }}
       <span v-if="displayedEditsTimeSpent > 0 || displayedEditsEstimation > 0">
         ({{ formatDuration(displayedEditsTimeSpent) }}
         {{
           isDurationInHours
-            ? $tc(
-                'main.hours_spent',
-                formatDuration(displayedEditsTimeSpent, false)
-              )
-            : $tc(
-                'main.days_spent',
-                formatDuration(displayedEditsTimeSpent, false)
-              )
+            ? $t('main.hours_spent', {
+                count: formatDuration(displayedEditsTimeSpent, false)
+              })
+            : $t('main.days_spent', {
+                count: formatDuration(displayedEditsTimeSpent, false)
+              })
         }},
         {{ formatDuration(displayedEditsEstimation) }}
         {{
           isDurationInHours
-            ? $tc(
-                'main.hours_estimated',
-                formatDuration(displayedEditsEstimation, false)
-              )
-            : $tc(
-                'main.man_days',
-                formatDuration(displayedEditsEstimation, false)
-              )
+            ? $t('main.hours_estimated', {
+                count: formatDuration(displayedEditsEstimation, false)
+              })
+            : $t('main.man_days', {
+                count: formatDuration(displayedEditsEstimation, false)
+              })
         }})
       </span>
     </p>
@@ -512,6 +498,7 @@
 <script>
 import { mapGetters, mapActions } from 'vuex'
 
+import { getTaskHref } from '@/lib/path'
 import preferences from '@/lib/preferences'
 import { range } from '@/lib/time'
 
@@ -523,6 +510,7 @@ import { selectionListMixin } from '@/components/mixins/selection'
 
 import ButtonSimple from '@/components/widgets/ButtonSimple.vue'
 import DescriptionCell from '@/components/cells/DescriptionCell.vue'
+import EmptyList from '@/components/widgets/EmptyList.vue'
 import EntityThumbnail from '@/components/widgets/EntityThumbnail.vue'
 import MetadataHeader from '@/components/cells/MetadataHeader.vue'
 import MetadataInput from '@/components/cells/MetadataInput.vue'
@@ -604,6 +592,7 @@ export default {
   components: {
     ButtonSimple,
     DescriptionCell,
+    EmptyList,
     EntityThumbnail,
     MetadataHeader,
     MetadataInput,
@@ -628,8 +617,6 @@ export default {
       'displayedEditsLength',
       'displayedEditsTimeSpent',
       'isCurrentUserAdmin',
-      'isCurrentUserManager',
-      'isCurrentUserSupervisor',
       'isCurrentUserClient',
       'isSingleEpisode',
       'isEditDescription',
@@ -650,10 +637,16 @@ export default {
       'user'
     ]),
 
+    // Production-scoped: effective role on the current production (global
+    // admins/managers still pass, but a per-project override wins).
+    ...mapGetters({
+      isCurrentUserManager: 'isCurrentUserProductionManager',
+      isCurrentUserSupervisor: 'isCurrentUserProductionSupervisor'
+    }),
+
     isEmptyList() {
       return (
-        this.displayedEdits.length &&
-        this.displayedEdits[0].length === 0 &&
+        this.displayedEdits.length === 0 &&
         !this.isLoading &&
         !this.isError &&
         (!this.editSearchText || this.editSearchText.length === 0)
@@ -739,6 +732,17 @@ export default {
 
     loadMoreEdits() {
       this.displayMoreEdits()
+    },
+
+    taskHref(taskId) {
+      return getTaskHref(
+        this.$router,
+        this.taskMap.get(taskId),
+        this.currentProduction,
+        this.isTVShow,
+        this.currentEpisode,
+        this.taskTypeMap
+      )
     },
 
     editPath(editId) {
@@ -899,6 +903,18 @@ thead .name.edit-name {
   width: 150px;
 }
 
+.expand-task-types :deep(.validation-cell) {
+  width: auto;
+  min-width: 150px;
+  max-width: none;
+}
+
+.expand-task-types :deep(.task-type-name) {
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .estimation,
 .time-spent {
   min-width: 70px;
@@ -923,10 +939,6 @@ span.thumbnail-empty {
 
 .info {
   margin-top: 2em;
-}
-
-.info img {
-  max-width: 80vh;
 }
 
 .datatable-row th.name {

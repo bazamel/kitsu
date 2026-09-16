@@ -4,18 +4,34 @@ export default {
    * increment. If there is no number, we consider that a new name
    * must be written.
    */
-  generateNextName(name, padding = 1) {
+  generateNextName(name, step = 1) {
     const matches = name.match(/\d+$/)
     if (matches) {
       const number = matches[0]
       const rootName = name.substring(0, name.length - number.length)
       let numberInt = parseInt(number)
-      if (numberInt === 1 && padding === 10) numberInt = 10
-      else numberInt += padding
+      if (numberInt === 1 && step === 10) numberInt = 10
+      else numberInt += step
       return rootName + String(numberInt).padStart(number.length, '0')
     } else {
       return ''
     }
+  },
+
+  generateBulkShotNames(startName, count, step) {
+    const matches = startName.match(/\d+$/)
+    if (!matches) return []
+    const numStr = matches[0]
+    const prefix = startName.slice(0, startName.length - numStr.length)
+    const padLen = numStr.length
+    const startNum = parseInt(numStr, 10)
+    const cappedCount = Math.min(count, 500)
+    const names = []
+    for (let i = 0; i < cappedCount; i++) {
+      const n = startNum + i * step
+      names.push(prefix + String(n).padStart(padLen, '0'))
+    }
+    return names
   },
 
   shortenText(text, maxLength) {

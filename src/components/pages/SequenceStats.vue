@@ -42,6 +42,7 @@
       <search-query-list
         :queries="sequenceSearchQueries"
         type="sequenceStat"
+        :production-id="currentProduction?.id"
         @remove-search="removeSearchQuery"
       />
     </div>
@@ -111,7 +112,7 @@ export default {
 
   mounted() {
     this.setCountOptions()
-    this.loadShots(() => {
+    this.loadShots().then(() => {
       this.initSequences()
         .then(() => {
           this.initialLoading = false
@@ -163,7 +164,7 @@ export default {
 
     reloadData() {
       this.initialLoading = true
-      this.loadShots(() => {
+      this.loadShots().then(() => {
         this.initialLoading = false
         this.computeSequenceStats()
       })
@@ -256,7 +257,7 @@ export default {
       this.setCountOptions()
 
       if (!this.isTVShow) {
-        this.loadShots(() => {
+        this.loadShots().then(() => {
           this.initSequences().catch(err => console.error(err))
         })
       }
@@ -264,7 +265,7 @@ export default {
 
     currentEpisode() {
       if (this.isTVShow && this.currentEpisode) {
-        this.loadShots(() => {
+        this.loadShots().then(() => {
           this.initSequences()
             .then(() => {
               this.initialLoading = false

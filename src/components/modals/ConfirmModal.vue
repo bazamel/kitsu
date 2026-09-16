@@ -14,9 +14,15 @@
           <a
             :class="{
               button: true,
+              'is-primary': !isDanger,
+              'is-danger': isDanger,
               'is-loading': isLoading
             }"
+            role="button"
+            tabindex="0"
             @click="$emit('confirm')"
+            @keydown.enter.prevent="$emit('confirm')"
+            @keydown.space.prevent="$emit('confirm')"
           >
             {{ confirmButtonText || $t('main.confirmation') }}
           </a>
@@ -38,6 +44,7 @@ const props = defineProps({
   active: { type: Boolean, default: false },
   confirmButtonText: { type: String, default: '' },
   errorText: { type: String, default: '' },
+  isDanger: { type: Boolean, default: false },
   isError: { type: Boolean, default: false },
   isLoading: { type: Boolean, default: false },
   text: { type: String, required: true }

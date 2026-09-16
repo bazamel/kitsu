@@ -33,6 +33,13 @@
       v-if="(!light || fullScreen) && !isConcept"
     />
 
+    <color-picker
+      v-bind="pickerState('picture-background')"
+      :color="pictureBackgroundColor"
+      @change="pictureBackgroundColor = $event"
+      v-if="isTransparentPicture"
+    />
+
     <onion-skin-picker
       v-bind="pickerState('onion')"
       :is-on="isOnionSkinOn"
@@ -275,6 +282,11 @@ defineProps({
     type: Boolean,
     default: false
   },
+  // only alpha-capable pictures show the background color picker
+  isTransparentPicture: {
+    type: Boolean,
+    default: false
+  },
   isTyping: {
     type: Boolean,
     default: false
@@ -350,6 +362,9 @@ const isShapeMode = defineModel('isShapeMode', { default: undefined })
 const currentShape = defineModel('currentShape', { default: undefined })
 const isOnionSkinOn = defineModel('isOnionSkinOn', { default: false })
 const onionSkinFrames = defineModel('onionSkinFrames', { default: 2 })
+const pictureBackgroundColor = defineModel('pictureBackgroundColor', {
+  default: '#000000'
+})
 
 // The picker emits a combined { enabled, frames } so the on/off state and
 // the span stay in sync (picking a number turns it on, "Off" disables it).

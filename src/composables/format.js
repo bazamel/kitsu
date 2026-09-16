@@ -10,7 +10,8 @@ import { useI18n } from 'vue-i18n'
 import { useStore } from 'vuex'
 
 import {
-  formatDate,
+  formatDate as libFormatDate,
+  formatDisplayDate as libFormatDisplayDate,
   formatDuration as libFormatDuration,
   formatFullDate,
   formatSimpleDate
@@ -20,20 +21,28 @@ import {
 // the reactive parts can import them directly without instantiating the
 // composable.
 
-export { formatDate, formatFullDate, formatSimpleDate }
+export { libFormatDate as formatDate, formatFullDate, formatSimpleDate }
 
 export const formatPrioritySymbol = priority => {
   const clamped = Math.max(0, Math.min(priority, 3))
   return '!'.repeat(clamped)
 }
 
+// Number-typed TextFields emit valueAsNumber, so both sanitizers must
+// accept numbers as well as user-typed strings.
 export const sanitizeInteger = value => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? Math.trunc(value) : 0
+  }
   if (typeof value !== 'string') return 0
   const digits = value.replace(/\D/g, '')
   return digits.length > 0 ? parseInt(digits) || 0 : 0
 }
 
 export const sanitizeIntegerLight = value => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? Math.trunc(value) : null
+  }
   if (typeof value !== 'string') return null
   const digits = value.replace(/\D/g, '')
   return digits.length > 0 ? parseInt(digits) || null : null
@@ -48,7 +57,17 @@ export const useFormat = () => {
     () => organisation.value.format_duration_in_hours
   )
 
+  const dateFormat = computed(() => store.getters.dateFormat)
+  const use12HourClock = computed(() => store.getters.use12HourClock)
+
   const formatBoolean = value => (value ? t('main.yes') : t('main.no'))
+
+  // unlike the pure export above, this one applies the user preferences,
+  // matching the legacy mixin's formatDate
+  const formatDate = date =>
+    libFormatDate(date, dateFormat.value, use12HourClock.value)
+
+  const formatDisplayDate = date => libFormatDisplayDate(date, dateFormat.value)
 
   const formatDuration = (minutes, toLocale = true) =>
     libFormatDuration(organisation.value, minutes, toLocale)
@@ -64,8 +83,11 @@ export const useFormat = () => {
   return {
     organisation,
     isDurationInHours,
+    dateFormat,
+    use12HourClock,
     formatBoolean,
     formatDate,
+    formatDisplayDate,
     formatFullDate,
     formatSimpleDate,
     formatDuration,

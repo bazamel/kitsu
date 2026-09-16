@@ -184,7 +184,7 @@
         v-else-if="playlists.length === 0"
       >
         <div v-if="!loading.playlists && !loading.playlistsInit">
-          <p class="empty-explaination">
+          <p class="empty-explanation">
             {{ $t('playlists.no_playlist') }}
           </p>
           <button
@@ -237,7 +237,14 @@
             <div class="flexrow">
               <page-subtitle class="flexrow-item" :text="addEntitiesText" />
               <span class="filler"></span>
-              <a class="close-button" @click="toggleAddEntities">
+              <a
+                class="close-button"
+                role="button"
+                tabindex="0"
+                @click="toggleAddEntities"
+                @keydown.enter.prevent="toggleAddEntities"
+                @keydown.space.prevent="toggleAddEntities"
+              >
                 <x-icon />
               </a>
             </div>
@@ -362,8 +369,12 @@
                       playlisted: currentEntitiesMap[asset.id] !== undefined
                     }"
                     draggable="true"
+                    role="button"
+                    tabindex="0"
                     @dragstart="onEntityDragStart($event, asset)"
                     @click.prevent="addEntityToPlaylist(asset)"
+                    @keydown.enter.prevent="addEntityToPlaylist(asset)"
+                    @keydown.space.prevent="addEntityToPlaylist(asset)"
                     v-for="asset in typeAssets.filter(a => !a.canceled)"
                   >
                     <div
@@ -391,8 +402,12 @@
                     playlisted: currentEntitiesMap[sequence.id] !== undefined
                   }"
                   draggable="true"
+                  role="button"
+                  tabindex="0"
                   @dragstart="onEntityDragStart($event, sequence)"
                   @click.prevent="addEntityToPlaylist(sequence)"
+                  @keydown.enter.prevent="addEntityToPlaylist(sequence)"
+                  @keydown.space.prevent="addEntityToPlaylist(sequence)"
                   v-for="sequence in displayedSequences.filter(
                     s => !s.canceled
                   )"
@@ -434,8 +449,12 @@
                     playlisted: currentEntitiesMap[edit.id] !== undefined
                   }"
                   draggable="true"
+                  role="button"
+                  tabindex="0"
                   @dragstart="onEntityDragStart($event, edit)"
                   @click.prevent="addEntityToPlaylist(edit)"
+                  @keydown.enter.prevent="addEntityToPlaylist(edit)"
+                  @keydown.space.prevent="addEntityToPlaylist(edit)"
                   v-for="edit in displayedEdits.filter(e => !e.canceled)"
                 >
                   <div
@@ -473,8 +492,12 @@
                     playlisted: currentEntitiesMap[episode.id] !== undefined
                   }"
                   draggable="true"
+                  role="button"
+                  tabindex="0"
                   @dragstart="onEntityDragStart($event, episode)"
                   @click.prevent="addEntityToPlaylist(episode)"
+                  @keydown.enter.prevent="addEntityToPlaylist(episode)"
+                  @keydown.space.prevent="addEntityToPlaylist(episode)"
                   v-for="episode in displayedEpisodes.filter(e => !e.canceled)"
                 >
                   <div
@@ -530,8 +553,12 @@
                         playlisted: currentEntitiesMap[shot.id] !== undefined
                       }"
                       draggable="true"
+                      role="button"
+                      tabindex="0"
                       @dragstart="onEntityDragStart($event, shot)"
                       @click.prevent="addEntityToPlaylist(shot)"
+                      @keydown.enter.prevent="addEntityToPlaylist(shot)"
+                      @keydown.space.prevent="addEntityToPlaylist(shot)"
                     >
                       <div
                         class="entity-loading-spinner"
@@ -595,9 +622,8 @@ import moment from 'moment-timezone'
 import { mapGetters, mapActions } from 'vuex'
 import { PlusIcon, XIcon } from 'lucide-vue-next'
 
-import playlistsApi from '@/store/api/playlists'
-import { DEFAULT_NB_FRAMES_PICTURE } from '@/lib/playlist'
-import { formatDate } from '@/lib/time'
+import { DEFAULT_NB_FRAMES_PICTURE, isPlaylistInScope } from '@/lib/playlist'
+import { formatDate as formatDateBase } from '@/lib/time'
 import { getPlaylistPath } from '@/lib/path'
 import { updateModelFromList, removeModelFromList } from '@/lib/models'
 import { sortAssets, sortShots } from '@/lib/sorting'
@@ -645,12 +671,16 @@ export default {
     return {
       currentPlaylist: { name: '' },
       currentShareLinksCount: 0,
-      currentSort: 'updated_at',
+      currentSort: localStorage.getItem('playlist-sort') || 'updated_at',
       currentEntitiesMap: {},
       currentEntitiesList: [],
       entitiesAddedWhilePanelOpen: false,
       entityLoading: {},
       isAddingEntity: false,
+      isReloadPending: false,
+      servedScope: null,
+      isServedScopeStale: false,
+      isUnmounted: false,
       isListToggled: false,
       isMorePlaylists: true,
       page: 1,
@@ -699,16 +729,16 @@ export default {
       'assetSearchText',
       'currentEpisode',
       'currentProduction',
+      'dateFormat',
       'displayedAssets',
       'displayedAssetsByType',
       'displayedEdits',
+      'editsLoadingKey',
       'displayedEpisodes',
       'displayedSequences',
       'displayedShots',
       'displayedShotsBySequence',
       'isAssetsLoading',
-      'isCurrentUserManager',
-      'isCurrentUserSupervisor',
       'isEditsLoading',
       'isEpisodesLoading',
       'isShotsLoading',
@@ -718,11 +748,17 @@ export default {
       'playlists',
       'playlistsPath',
       'shotsByEpisode',
+      'shotsLoadingKey',
       'shotSearchText',
       'taskMap',
       'taskStatusMap',
-      'taskTypeMap'
+      'taskTypeMap',
+      'use12HourClock'
     ]),
+    ...mapGetters({
+      isCurrentUserManager: 'isCurrentUserProductionManager',
+      isCurrentUserSupervisor: 'isCurrentUserProductionSupervisor'
+    }),
 
     isAdditionLoading() {
       return (
@@ -731,6 +767,29 @@ export default {
         this.loading.addDaily ||
         this.loading.addEpisode
       )
+    },
+
+    // The all pseudo-episode is split by entity type: "All assets" (default)
+    // and "All shots" (?for_entity=shot). Undefined outside of it.
+    allForEntity() {
+      if (!this.isTVShow || this.currentEpisode?.id !== 'all') return undefined
+      return this.$route.query.for_entity === 'shot' ? 'shot' : 'asset'
+    },
+
+    allShotsQuery() {
+      return this.allForEntity === 'shot' ? { for_entity: 'shot' } : {}
+    },
+
+    // The store keeps the last loaded list across pages: on mount it can
+    // belong to another production, episode or all-mode entity type.
+    isPlaylistListStale() {
+      const [first] = this.playlists
+      if (!first) return false
+      return !isPlaylistInScope(first, {
+        productionId: this.currentProduction.id,
+        episodeId: this.isTVShow ? this.currentEpisode?.id : undefined,
+        forEntity: this.allForEntity
+      })
     },
 
     isAssetPlaylist() {
@@ -789,7 +848,9 @@ export default {
       let episodeName = ''
       if (this.currentEpisode) {
         if (this.currentEpisode.id === 'all') {
-          episodeName = this.$t('main.all')
+          episodeName = this.$t(
+            this.allForEntity === 'shot' ? 'main.all_shots' : 'main.all_assets'
+          )
         } else if (this.currentEpisode.id === 'main') {
           episodeName = this.$t('main.main_pack')
         } else {
@@ -822,6 +883,7 @@ export default {
 
   methods: {
     ...mapActions([
+      'addEntitiesToPlaylist',
       'changePlaylistOrder',
       'changePlaylistPreview',
       'changePlaylistType',
@@ -868,7 +930,7 @@ export default {
     // Helpers
 
     formatDate(dateString) {
-      return formatDate(dateString)
+      return formatDateBase(dateString, this.dateFormat, this.use12HourClock)
     },
 
     isCurrentProjectEvent(eventData) {
@@ -880,12 +942,14 @@ export default {
     },
 
     getPlaylistPath(playlistId, section) {
-      return getPlaylistPath(
+      const route = getPlaylistPath(
         this.currentProduction.id,
         this.currentEpisode ? this.currentEpisode.id : null,
         playlistId,
         section
       )
+      route.query = this.allShotsQuery
+      return route
     },
 
     playlistElementStyle(playlist) {
@@ -923,11 +987,13 @@ export default {
     // Data loading
 
     async loadShotsData() {
+      // Only the scope the store recorded tells an episode dataset from the
+      // production-wide one, and a load in flight has emptied the map: await
+      // it, or the playlist is rebuilt without its shots.
+      const scope = this.isTVShow ? (this.currentEpisode?.id ?? '') : ''
       if (
-        this.displayedShots.length === 0 ||
-        this.displayedShots[0].project_id !== this.currentProduction.id ||
-        (this.currentEpisode &&
-          this.displayedShots[0].episode_id !== this.currentEpisode.id)
+        this.isShotsLoading ||
+        this.shotsLoadingKey !== `${this.currentProduction.id}/${scope}`
       ) {
         if (
           this.isTVShow &&
@@ -935,7 +1001,9 @@ export default {
           (this.currentEpisode.id === 'main' ||
             this.currentEpisode.id === 'all')
         ) {
-          // Do nothing for main or all episodes
+          // Pseudo-episodes load nothing of their own: only let the load in
+          // flight refill the map it emptied.
+          if (this.isShotsLoading) await shotStore.cache.shotsLoadingPromise
         } else {
           if (this.isTVShow && !this.currentEpisode) {
             await this.loadEpisodes()
@@ -952,9 +1020,11 @@ export default {
     },
 
     async loadEditsData() {
+      // Same rule as loadShotsData.
+      const scope = this.isTVShow ? (this.currentEpisode?.id ?? '') : ''
       if (
-        this.displayedEdits.length === 0 ||
-        this.displayedEdits[0].project_id !== this.currentProduction.id
+        this.isEditsLoading ||
+        this.editsLoadingKey !== `${this.currentProduction.id}/${scope}`
       ) {
         if (this.isTVShow && !this.currentEpisode) {
           await this.loadEpisodes()
@@ -976,7 +1046,10 @@ export default {
     async loadShareLinksCount(playlistId) {
       if (!this.isCurrentUserManager || !playlistId) return
       try {
-        const links = await playlistsApi.getShareLinks(playlistId)
+        const links = await this.$store.dispatch(
+          'loadPlaylistShareLinks',
+          playlistId
+        )
         this.currentShareLinksCount = links.length
       } catch {
         this.currentShareLinksCount = 0
@@ -996,7 +1069,8 @@ export default {
         return this.loadPlaylists({
           sortBy: this.currentSort,
           page: this.page,
-          taskTypeId: this.taskTypeId
+          taskTypeId: this.taskTypeId,
+          forEntity: this.allForEntity
         })
           .then(() => {
             return setFirstPlaylist()
@@ -1028,7 +1102,8 @@ export default {
       this.loadMorePlaylists({
         sortBy: this.currentSort,
         page: this.page,
-        taskTypeId: this.taskTypeId
+        taskTypeId: this.taskTypeId,
+        forEntity: this.allForEntity
       })
         .then(playlists => {
           setTimeout(() => {
@@ -1171,11 +1246,14 @@ export default {
       if (playlist) {
         this.loading.playlist = true
         const loadedPlaylist = await this.loadPlaylist(playlist)
+        // Another playlist opened during the load: its own load shows it.
+        if (this.$route.params.playlist_id !== playlistId) return
         this.currentPlaylist = ref(loadedPlaylist)
         this.rebuildCurrentEntities()
         this.loading.playlist = false
         this.loadShareLinksCount(loadedPlaylist.id)
       } else {
+        this.loading.playlist = false
         this.currentPlaylist = {
           name: ''
         }
@@ -1301,7 +1379,7 @@ export default {
 
     // Addition Helpers
 
-    addCurrentSelection() {
+    async addCurrentSelection() {
       this.setSilent()
       let entities
       if (this.isAssetPlaylist) {
@@ -1313,88 +1391,113 @@ export default {
       } else {
         entities = this.displayedShots
       }
-      this.addEntities([...entities].reverse(), () => {
+      try {
+        await this.addEntities(entities)
+      } finally {
         this.clearSilent()
-      })
+      }
     },
 
-    addSequence(sequenceShots) {
+    async addSequence(sequenceShots) {
       if (sequenceShots.length > 0) {
         const sequenceId = sequenceShots[0].sequence_id
         const shots = Array.from(shotStore.cache.shotMap.values())
           .filter(s => s.sequence_id === sequenceId)
           .sort(firstBy('name'))
-          .reverse()
         this.setSilent()
-        this.addEntities(shots, () => {
+        try {
+          await this.addEntities(shots)
+        } finally {
           this.clearSilent()
-        })
+        }
       }
     },
 
     async addAllPending() {
       this.setSilent()
       this.loading.addWeekly = true
-      const getPending = this.isAssetPlaylist
-        ? this.getPendingAssets
-        : this.getPendingShots
-      const sortEntities = this.isAssetPlaylist ? sortAssets : sortShots
-      let entities = await getPending(false)
-      entities = sortEntities(entities).reverse()
-      this.addEntities(entities, () => {
+      try {
+        const getPending = this.isAssetPlaylist
+          ? this.getPendingAssets
+          : this.getPendingShots
+        const sortEntities = this.isAssetPlaylist ? sortAssets : sortShots
+        const entities = await getPending(false)
+        await this.addEntities(sortEntities(entities))
+      } finally {
         this.loading.addWeekly = false
         this.clearSilent()
-      })
+      }
     },
 
     async addDailyPending() {
       this.loading.addDaily = true
       this.setSilent()
-      const getPending = this.isAssetPlaylist
-        ? this.getPendingAssets
-        : this.getPendingShots
-      const sortEntities = this.isAssetPlaylist ? sortAssets : sortShots
-      let entities = await getPending(true)
-      entities = sortEntities(entities).reverse()
-      this.addEntities(entities, () => {
+      try {
+        const getPending = this.isAssetPlaylist
+          ? this.getPendingAssets
+          : this.getPendingShots
+        const sortEntities = this.isAssetPlaylist ? sortAssets : sortShots
+        const entities = await getPending(true)
+        await this.addEntities(sortEntities(entities))
+      } finally {
         this.loading.addDaily = false
         this.clearSilent()
-      })
+      }
     },
 
-    addEpisodePending() {
+    async addEpisodePending() {
       this.loading.addEpisode = true
       this.setSilent()
-      let shots = [].concat(...this.shotsByEpisode)
-      shots = sortShots(shots).reverse()
-      this.addEntities(shots, () => {
+      try {
+        const shots = this.shotsByEpisode.flat()
+        await this.addEntities(sortShots(shots))
+      } finally {
         this.loading.addEpisode = false
         this.clearSilent()
-      })
+      }
     },
 
-    addMovie() {
+    async addMovie() {
       this.loading.addMovie = true
       this.setSilent()
-      const shots = sortShots(Array.from(shotStore.cache.shotMap.values()))
-      this.addEntities(shots.reverse(), () => {
+      try {
+        const shots = sortShots(Array.from(shotStore.cache.shotMap.values()))
+        await this.addEntities(shots)
+      } finally {
         this.loading.addMovie = false
         this.clearSilent()
-      })
+      }
     },
 
-    addEntities(entities, callback, playlist = undefined) {
-      if (!playlist) {
-        playlist = this.currentPlaylist
-      }
-      if (entities && entities.length > 0) {
-        this.entitiesAddedWhilePanelOpen = true
-        const entity = entities.pop()
-        this.addEntity(entity, playlist).then(() => {
-          this.addEntities(entities, callback, playlist)
+    async addEntities(entities) {
+      // Captured once: keep adding to the playlist the user started from,
+      // even if they switch playlists mid-sequence.
+      const playlist = this.currentPlaylist
+      if (!entities?.length) return
+      this.entitiesAddedWhilePanelOpen = true
+      entities.forEach(entity => {
+        this.entityLoading[entity.id] = true
+      })
+      try {
+        await this.addEntitiesToPlaylist({
+          playlist,
+          entityIds: entities.map(entity => entity.id)
         })
-      } else {
-        callback()
+        if (playlist.id === this.currentPlaylist.id) {
+          const loadedPlaylist = await this.loadPlaylist(playlist)
+          if (this.$route.params.playlist_id !== playlist.id) return
+          this.currentPlaylist = ref(loadedPlaylist)
+          this.rebuildCurrentEntities()
+          this.$nextTick(() => {
+            this.playlistPlayer?.scrollToRight()
+          })
+        }
+      } catch (err) {
+        console.error(err)
+      } finally {
+        entities.forEach(entity => {
+          this.entityLoading[entity.id] = false
+        })
       }
     },
 
@@ -1433,7 +1536,8 @@ export default {
           updates
         })
         playlistPlayer?.confirmAnnotationsSaved()
-      } catch {
+      } catch (err) {
+        console.error('Failed to save annotations', err)
         playlistPlayer?.restoreFailedAnnotations()
       }
     },
@@ -1548,10 +1652,11 @@ export default {
           params: {
             production_id: this.currentProduction.id,
             playlist_id: this.playlists[0].id
-          }
+          },
+          query: this.allShotsQuery
         })
       } else {
-        this.$router.push(this.playlistsPath)
+        this.$router.push({ ...this.playlistsPath, query: this.allShotsQuery })
       }
     },
 
@@ -1629,7 +1734,8 @@ export default {
     showAddModal() {
       this.playlistToEdit = {
         name: `${moment().format('YYYY-MM-DD HH:mm:ss')}`,
-        for_client: false
+        for_client: false,
+        for_entity: this.allForEntity
       }
       this.errors.editPlaylist = false
       this.modals.isEditDisplayed = true
@@ -1651,21 +1757,86 @@ export default {
 
     // Loading
 
-    async reloadAll() {
-      if (!this.loading.playlists) {
-        this.loading.playlists = true
-        await this.loadShotsData()
-        await this.loadAssetsData()
-        await this.loadEditsData()
-        await this.loadEpisodesData()
-        this.page = 1
-        await this.loadPlaylistsData()
+    // What a run serves: the scope of the loads plus the list filters.
+    reloadScope() {
+      return [
+        this.currentProduction?.id,
+        this.currentEpisode?.id ?? '',
+        this.allForEntity ?? '',
+        this.currentSort,
+        this.taskTypeId
+      ].join('/')
+    },
+
+    // Every reload goes through this gate. The watchers can ask again while
+    // a run is in flight: remember it and, once the run settles, run a full
+    // forced reload if the run did not serve the scope asked for since.
+    // `work` publishes the scope it serves through servedScope, or throws.
+    async runReload(work) {
+      if (this.loading.playlists) {
+        this.isReloadPending = true
+        // The scope may come back before the run settles while the loads
+        // made in between served the other one: remember the move itself.
+        if (this.servedScope && this.servedScope !== this.reloadScope()) {
+          this.isServedScopeStale = true
+        }
+        return
+      }
+      this.loading.playlists = true
+      let isServed = false
+      try {
+        await work()
+        isServed = true
+      } finally {
         this.loading.playlists = false
+        const isStale =
+          !isServed ||
+          this.isServedScopeStale ||
+          this.servedScope !== this.reloadScope()
+        this.servedScope = null
+        this.isServedScopeStale = false
+        if (this.isReloadPending) {
+          this.isReloadPending = false
+          if (!this.isUnmounted && isStale) await this.reloadAll(true)
+        }
+      }
+    },
+
+    async reloadAll(force = false) {
+      await this.runReload(async () => {
+        // Resolve the episode first: the fallback fires the currentEpisode
+        // watcher, whose request this very run serves.
+        if (this.isTVShow && !this.currentEpisode) await this.loadEpisodes()
+        this.servedScope = this.reloadScope()
+        // Leaving the page stops the run: a further load would blank the
+        // page displayed instead.
+        await this.loadShotsData()
+        if (this.isUnmounted) return
+        await this.loadAssetsData()
+        if (this.isUnmounted) return
+        await this.loadEditsData()
+        if (this.isUnmounted) return
+        await this.loadEpisodesData()
+        if (this.isUnmounted) return
+        this.page = 1
+        await this.loadPlaylistsData(force || this.isPlaylistListStale)
+        if (this.isUnmounted) return
         this.resetPlaylist()
         setTimeout(() => {
           this.loading.playlistsInit = false
         }, 300)
-      }
+      })
+    },
+
+    // The sort and the task type filter only need the list again, from its
+    // first page: the page reached before holds nothing once fewer
+    // playlists match.
+    reloadPlaylistList() {
+      return this.runReload(() => {
+        this.servedScope = this.reloadScope()
+        this.page = 1
+        return this.loadPlaylistsData(true)
+      })
     }
   },
 
@@ -1673,11 +1844,12 @@ export default {
     // Next tick needed to ensure that current production is properly set.
     this.$nextTick(() => {
       this.reloadAll()
-      if (localStorage.getItem('playlist-sort')) {
-        this.currentSort = localStorage.getItem('playlist-sort')
-      }
       this.resetSorting()
     })
+  },
+
+  beforeUnmount() {
+    this.isUnmounted = true
   },
 
   watch: {
@@ -1707,13 +1879,17 @@ export default {
       }
     },
 
+    allForEntity(forEntity, previous) {
+      // All assets <-> All shots: same episode, different query.
+      if (forEntity && previous) {
+        this.$store.commit('LOAD_PLAYLISTS_END', [])
+        this.reloadAll()
+      }
+    },
+
     currentSort() {
       localStorage.setItem('playlist-sort', this.currentSort)
-      this.loading.playlists = true
-      this.page = 1
-      this.loadPlaylistsData(true).then(() => {
-        this.loading.playlists = false
-      })
+      this.reloadPlaylistList()
     },
 
     isListToggled() {
@@ -1721,7 +1897,7 @@ export default {
     },
 
     taskTypeId() {
-      this.loadPlaylistsData(true)
+      this.reloadPlaylistList()
     }
   },
 
@@ -1732,7 +1908,16 @@ export default {
           return
         }
         if (!this.playlistMap.get(eventData.playlist_id)) {
-          this.refreshPlaylist(eventData.playlist_id)
+          this.refreshPlaylist({
+            id: eventData.playlist_id,
+            // The scope the list was loaded for, as in isPlaylistListStale.
+            scope: {
+              productionId: this.currentProduction.id,
+              episodeId: this.isTVShow ? this.currentEpisode?.id : undefined,
+              forEntity: this.allForEntity,
+              taskTypeId: this.taskTypeId
+            }
+          })
         }
       },
 
@@ -1745,7 +1930,7 @@ export default {
           !this.lockSystem.isSilent &&
           !this.isAddingEntity
         ) {
-          this.refreshPlaylist(eventData.playlist_id).then(playlist => {
+          this.refreshPlaylist({ id: eventData.playlist_id }).then(playlist => {
             if (eventData.playlist_id === this.currentPlaylist.id) {
               this.currentPlaylist = ref(playlist)
               this.$nextTick(() => {
@@ -2103,7 +2288,7 @@ h2 {
     }
   }
 
-  .empty-explaination {
+  .empty-explanation {
     color: $white;
     margin-top: 4em;
     font-size: 1.5em;

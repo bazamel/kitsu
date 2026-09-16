@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import store from '@/store/modules/productions'
 import assetTypeStore from '@/store/modules/assettypes'
 import taskStatusStore from '@/store/modules/taskstatus'
@@ -10,6 +12,7 @@ import {
   ADD_METADATA_DESCRIPTOR_END,
   ADD_PRODUCTION,
   CLEAR_ASSETS,
+  CLEAR_EDITS,
   CLEAR_SHOTS,
   LOAD_OPEN_PRODUCTIONS_END,
   LOAD_OPEN_PRODUCTIONS_ERROR,
@@ -29,7 +32,6 @@ import {
   PRODUCTION_REMOVE_TASK_STATUS,
   PRODUCTION_REMOVE_TASK_TYPE,
   REMOVE_PRODUCTION,
-  RESET_PRODUCTION_PATH,
   SET_CURRENT_PRODUCTION,
   TEAM_ADD_PERSON,
   TEAM_REMOVE_PERSON,
@@ -335,33 +337,23 @@ describe('Productions store', () => {
     })
 
     test('newProduction', async () => {
-      const descriptor = {
-        id: 'descriptor-1',
-        entity_type: 'Project',
-        name: 'Studio Location',
-        field_name: 'studio_location'
-      }
+      // Zou copies the all-projects descriptors at creation: no
+      // ensureProjectMetadataDescriptor dispatch anymore.
       let mockCommit = vi.fn()
-      const mockDispatch = vi.fn(() => Promise.resolve())
-      const getters = { mergedProjectMetadataDescriptors: [descriptor] }
       productionApi.newProduction = vi.fn(() => Promise.resolve({ id: '1' }))
       await store.actions.newProduction(
-        { commit: mockCommit, dispatch: mockDispatch, getters },
+        { commit: mockCommit },
         'production-id'
       )
       expect(productionApi.newProduction).toBeCalledTimes(1)
       expect(mockCommit).toBeCalledTimes(1)
       expect(mockCommit).toHaveBeenNthCalledWith(1, ADD_PRODUCTION, { id: '1' })
-      expect(mockDispatch).toHaveBeenCalledWith(
-        'ensureProjectMetadataDescriptor',
-        { production: { id: '1' }, descriptor }
-      )
 
       mockCommit = vi.fn()
       productionApi.newProduction = vi.fn(() => Promise.reject(new Error('error')))
       try {
         await store.actions.newProduction(
-          { commit: mockCommit, dispatch: mockDispatch, getters },
+          { commit: mockCommit },
           'production-id'
         )
       } catch {
@@ -442,41 +434,37 @@ describe('Productions store', () => {
       ).rejects.toEqual({ response: { status: 500 } })
     })
 
-    test('addProjectMetadataDescriptorToAllProductions skips productions owning the field_name', async () => {
+    test('addProjectMetadataDescriptorToAllProductions applies the column in one request', async () => {
       const mockCommit = vi.fn()
       const state = {
         productions: [
-          {
-            id: 'production-1',
-            descriptors: [
-              {
-                id: 'descriptor-1',
-                entity_type: 'Project',
-                name: 'studio location',
-                field_name: 'studio_location'
-              }
-            ]
-          },
+          { id: 'production-1', descriptors: [] },
           { id: 'production-2', descriptors: [] }
         ],
-        productionMap: new Map()
+        productionMap: new Map([
+          ['production-1', { id: 'production-1', descriptors: [] }],
+          ['production-2', { id: 'production-2', descriptors: [] }]
+        ])
       }
-      productionApi.addMetadataDescriptor = vi.fn((productionId, descriptor) =>
-        Promise.resolve({
-          ...descriptor,
-          id: 'descriptor-2',
-          project_id: productionId
-        })
+      productionApi.addMetadataDescriptorToAllProjects = vi.fn(() =>
+        Promise.resolve([
+          { id: 'descriptor-1', project_id: 'production-1' },
+          { id: 'descriptor-2', project_id: 'production-2' }
+        ])
       )
       await store.actions.addProjectMetadataDescriptorToAllProductions(
         { commit: mockCommit, state },
-        { name: 'Studio Location', data_type: 'string' }
+        { name: 'Studio Location', data_type: 'string', projectId: 'x' }
       )
-      expect(productionApi.addMetadataDescriptor).toBeCalledTimes(1)
-      expect(productionApi.addMetadataDescriptor).toHaveBeenCalledWith(
-        'production-2',
-        { name: 'Studio Location', data_type: 'string' }
-      )
+      expect(
+        productionApi.addMetadataDescriptorToAllProjects
+      ).toBeCalledTimes(1)
+      // projectId is stripped from the payload before it is sent.
+      expect(
+        productionApi.addMetadataDescriptorToAllProjects
+      ).toHaveBeenCalledWith({ name: 'Studio Location', data_type: 'string' })
+      // One commit per created descriptor.
+      expect(mockCommit).toHaveBeenCalledTimes(2)
     })
 
     describe('editProduction', () => {
@@ -585,32 +573,20 @@ describe('Productions store', () => {
 
     test('setProduction', () => {
       let mockCommit = vi.fn()
-      const fakeRootGetters = {
-        isTVShow: true,
-        currentEpisode: { id: '123' }
-      }
-      store.actions.setProduction({ commit: mockCommit, rootGetters: fakeRootGetters }, 'production-id')
+      store.actions.setProduction({ commit: mockCommit }, 'production-id')
       expect(mockCommit).toBeCalledTimes(4)
       expect(mockCommit).toHaveBeenNthCalledWith(1, SET_CURRENT_PRODUCTION, 'production-id')
       expect(mockCommit).toHaveBeenNthCalledWith(2, CLEAR_ASSETS)
       expect(mockCommit).toHaveBeenNthCalledWith(3, CLEAR_SHOTS)
-      expect(mockCommit).toHaveBeenNthCalledWith(4, RESET_PRODUCTION_PATH, { productionId: 'production-id', episodeId: '123' })
+      expect(mockCommit).toHaveBeenNthCalledWith(4, CLEAR_EDITS)
 
       mockCommit = vi.fn()
-      fakeRootGetters.isTVShow = false
-      store.actions.setProduction({ commit: mockCommit, rootGetters: fakeRootGetters }, 'production-id')
+      store.actions.setProduction({ commit: mockCommit }, null)
       expect(mockCommit).toBeCalledTimes(4)
-      expect(mockCommit).toHaveBeenNthCalledWith(1, SET_CURRENT_PRODUCTION, 'production-id')
-      expect(mockCommit).toHaveBeenNthCalledWith(2, CLEAR_ASSETS)
-      expect(mockCommit).toHaveBeenNthCalledWith(3, CLEAR_SHOTS)
-      expect(mockCommit).toHaveBeenNthCalledWith(4, RESET_PRODUCTION_PATH, { productionId: 'production-id' })
-
-      mockCommit = vi.fn()
-      store.actions.setProduction({ commit: mockCommit, rootGetters: fakeRootGetters }, null)
-      expect(mockCommit).toBeCalledTimes(3)
       expect(mockCommit).toHaveBeenNthCalledWith(1, SET_CURRENT_PRODUCTION, null)
       expect(mockCommit).toHaveBeenNthCalledWith(2, CLEAR_ASSETS)
       expect(mockCommit).toHaveBeenNthCalledWith(3, CLEAR_SHOTS)
+      expect(mockCommit).toHaveBeenNthCalledWith(4, CLEAR_EDITS)
     })
 
     test('storeProductionPicture', () => {
@@ -703,6 +679,38 @@ describe('Productions store', () => {
         1, PRODUCTION_ADD_TASK_TYPE, '456'
       )
       expect(productionApi.addTaskTypeToProduction).toBeCalledTimes(1)
+    })
+
+    test('addSettingsToProduction', async () => {
+      const mockCommit = vi.fn()
+      const state = {
+        currentProduction: { id: '123', task_types: ['old-1', 'kept-1'] }
+      }
+      productionApi.addSettingsToProduction = vi.fn(() =>
+        Promise.resolve({ id: '123' })
+      )
+      await store.actions.addSettingsToProduction(
+        { commit: mockCommit, state },
+        {
+          taskTypes: [{ taskTypeId: 'kept-1' }, { taskTypeId: 'new-1', priority: 1 }],
+          taskStatusIds: ['status-1'],
+          assetTypeIds: ['asset-type-1'],
+          replaceTaskTypes: true
+        }
+      )
+      expect(productionApi.addSettingsToProduction).toBeCalledTimes(1)
+      // Replace mode drops the task type absent from the wanted set.
+      expect(mockCommit).toHaveBeenCalledWith(
+        PRODUCTION_REMOVE_TASK_TYPE, 'old-1'
+      )
+      expect(mockCommit).toHaveBeenCalledWith(PRODUCTION_ADD_TASK_TYPE, 'kept-1')
+      expect(mockCommit).toHaveBeenCalledWith(PRODUCTION_ADD_TASK_TYPE, 'new-1')
+      expect(mockCommit).toHaveBeenCalledWith(
+        PRODUCTION_ADD_TASK_STATUS, 'status-1'
+      )
+      expect(mockCommit).toHaveBeenCalledWith(
+        PRODUCTION_ADD_ASSET_TYPE, 'asset-type-1'
+      )
     })
 
     test('removeTaskTypeFromProduction', () => {
@@ -877,8 +885,6 @@ describe('Productions store', () => {
       expect(state.productionStatus).toHaveLength(0)
     })
 
-    test.skip('LOAD_PRODUCTION_STATUS_ERROR', () => {})
-
     test('LOAD_PRODUCTION_STATUS_END', () => {
       store.mutations.LOAD_PRODUCTION_STATUS_END(state, [{ id: 1, status: 'status' }])
       expect(state.productionStatus).toEqual([{ id: 1, status: 'status' }])
@@ -889,12 +895,12 @@ describe('Productions store', () => {
       state.productionMap = new Map()
       state.productionStatusMap = new Map(Object.entries({
         1: { name: 'old status' },
-        2: { name: 'new status' }
+        2: { name: 'Open' }
       }))
       store.mutations.ADD_PRODUCTION(state, { id: 123, name: 'new production', project_status_id: '2' })
       expect(state.productions).toHaveLength(2)
       expect(state.openProductions).toHaveLength(1)
-      expect(state.productionMap.get(123)).toEqual({ id: 123, name: 'new production', project_status_id: '2', project_status_name: 'new status' })
+      expect(state.productionMap.get(123)).toEqual({ id: 123, name: 'new production', project_status_id: '2', project_status_name: 'Open' })
     })
 
     test('UPDATE_PRODUCTION', () => {
@@ -943,73 +949,6 @@ describe('Productions store', () => {
       expect(state.currentProduction).toEqual({ id: 'production-id' })
     })
 
-    test('RESET_PRODUCTION_PATH', () => {
-      store.mutations.RESET_PRODUCTION_PATH(state, { productionId: 'production-id', episodeId: 'episode-id' })
-      expect(state.assetsPath).toEqual({
-        name: 'episode-assets',
-        params: {
-          episode_id: 'episode-id',
-          production_id: 'production-id'
-        },
-        query: {
-          search: ''
-        }
-      })
-      expect(state.assetTypesPath).toEqual({
-        name: 'episode-production-asset-types',
-        params: {
-          episode_id: 'episode-id',
-          production_id: 'production-id'
-        }
-      })
-      expect(state.shotsPath).toEqual({
-        name: 'episode-shots',
-        params: {
-          episode_id: 'episode-id',
-          production_id: 'production-id'
-        },
-        query: {
-          search: ''
-        }
-      })
-      expect(state.sequencesPath).toEqual({
-        name: 'episode-sequences',
-        params: {
-          episode_id: 'episode-id',
-          production_id: 'production-id'
-        },
-        query: {
-          search: ''
-        }
-      })
-      expect(state.episodesPath).toEqual({
-        name: 'episodes',
-        params: {
-          production_id: 'production-id'
-        }
-      })
-      expect(state.breakdownPath).toEqual({
-        name: 'episode-breakdown',
-        params: {
-          episode_id: 'episode-id',
-          production_id: 'production-id'
-        }
-      })
-      expect(state.playlistsPath).toEqual({
-        name: 'episode-playlists',
-        params: {
-          episode_id: 'episode-id',
-          production_id: 'production-id'
-        }
-      })
-      expect(state.teamPath).toEqual({
-        name: 'team',
-        params: {
-          production_id: 'production-id'
-        }
-      })
-    })
-
     test('TEAM_ADD_PERSON', () => {
       state.currentProduction = {
         team: []
@@ -1022,8 +961,32 @@ describe('Productions store', () => {
       state.currentProduction = {
         team: [123]
       }
+      state.currentTeamRoles = { 123: 'manager' }
       store.mutations.TEAM_REMOVE_PERSON(state, 123)
       expect(state.currentProduction.team).toHaveLength(0)
+      expect(state.currentTeamRoles[123]).toBeUndefined()
+    })
+
+    test('TEAM_ROLES_LOADED', () => {
+      store.mutations.TEAM_ROLES_LOADED(state, [
+        { id: 123, project_role: 'supervisor' },
+        { id: 456, project_role: null }
+      ])
+      expect(state.currentTeamRoles).toEqual({ 123: 'supervisor', 456: null })
+    })
+
+    test('TEAM_MEMBER_ROLE_UPDATED', () => {
+      state.currentTeamRoles = { 123: 'supervisor' }
+      store.mutations.TEAM_MEMBER_ROLE_UPDATED(state, {
+        person_id: 123,
+        role: 'manager'
+      })
+      expect(state.currentTeamRoles[123]).toEqual('manager')
+      store.mutations.TEAM_MEMBER_ROLE_UPDATED(state, {
+        person_id: 123,
+        role: null
+      })
+      expect(state.currentTeamRoles[123]).toBeNull()
     })
 
     test('PRODUCTION_ADD_ASSET_TYPE', () => {
@@ -1193,5 +1156,125 @@ describe('Productions store', () => {
         expect(payload.is_publish_default_for_artists).toBeUndefined()
       })
     })
+  })
+})
+
+describe('Productions store, production paths', () => {
+  // The paths follow the current production and episode: a state set once by
+  // a mutation went stale whenever the episode moved through another road
+  // (episode list load, store fallbacks, F5) and sent the back links to the
+  // route without episode.
+  const pathOf = (name, currentProduction, currentEpisode) =>
+    store.getters[name](
+      { currentProduction },
+      {
+        currentProduction,
+        isTVShow: currentProduction?.production_type === 'tvshow'
+      },
+      {},
+      { currentEpisode }
+    )
+
+  test('point to the open productions without a production', () => {
+    expect(pathOf('assetsPath', null, null)).toMatchObject({
+      name: 'open-productions'
+    })
+  })
+
+  test('carry the current episode of a TV show', () => {
+    const production = { id: 'production-id', production_type: 'tvshow' }
+    expect(pathOf('assetsPath', production, { id: 'episode-id' })).toEqual({
+      name: 'episode-assets',
+      params: { episode_id: 'episode-id', production_id: 'production-id' },
+      query: { search: '' }
+    })
+    expect(pathOf('shotsPath', production, { id: 'episode-id' })).toEqual({
+      name: 'episode-shots',
+      params: { episode_id: 'episode-id', production_id: 'production-id' },
+      query: { search: '' }
+    })
+    expect(pathOf('breakdownPath', production, { id: 'episode-id' })).toEqual({
+      name: 'episode-breakdown',
+      params: { episode_id: 'episode-id', production_id: 'production-id' }
+    })
+  })
+
+  test('follow the production getter, which can fall back to the first open production', () => {
+    const production = { id: 'production-id', production_type: 'tvshow' }
+    const path = store.getters.assetsPath(
+      { currentProduction: null },
+      { isTVShow: true, currentProduction: production },
+      {},
+      { currentEpisode: { id: 'episode-id' } }
+    )
+    expect(path).toEqual({
+      name: 'episode-assets',
+      params: { episode_id: 'episode-id', production_id: 'production-id' },
+      query: { search: '' }
+    })
+  })
+
+  test.each([
+    ['assetTypesPath', 'episode-production-asset-types', false],
+    ['editsPath', 'episode-edits', true],
+    ['sequenceStatsPath', 'episode-sequence-stats', false],
+    ['playlistsPath', 'episode-playlists', false]
+  ])('%s carries the episode', (name, routeName, hasSearch) => {
+    const production = { id: 'production-id', production_type: 'tvshow' }
+    const expected = {
+      name: routeName,
+      params: { episode_id: 'episode-id', production_id: 'production-id' }
+    }
+    if (hasSearch) expected.query = { search: '' }
+    expect(pathOf(name, production, { id: 'episode-id' })).toEqual(expected)
+  })
+
+  test('drop the episode on a production without episodes', () => {
+    const production = { id: 'production-id', production_type: 'short' }
+    expect(pathOf('sequencesPath', production, { id: 'episode-id' })).toEqual({
+      name: 'sequences',
+      params: { production_id: 'production-id' }
+    })
+  })
+
+  test('keep the episode list and the team outside the episode context', () => {
+    const production = { id: 'production-id', production_type: 'tvshow' }
+    expect(pathOf('episodesPath', production, { id: 'episode-id' })).toEqual({
+      name: 'episodes',
+      params: { production_id: 'production-id' }
+    })
+    expect(pathOf('teamPath', production, { id: 'episode-id' })).toEqual({
+      name: 'team',
+      params: { production_id: 'production-id' }
+    })
+    expect(
+      pathOf('episodeStatsPath', production, { id: 'episode-id' })
+    ).toEqual({
+      name: 'episode-stats',
+      params: { production_id: 'production-id' }
+    })
+  })
+})
+
+describe('Productions store, closed production', () => {
+  // A closed production loaded for a link must not show among the open ones.
+  test('adds a closed production to the map only', () => {
+    const state = {
+      productions: [],
+      openProductions: [],
+      productionMap: new Map(),
+      productionStatusMap: new Map([
+        ['status-closed', { id: 'status-closed', name: 'Closed' }]
+      ])
+    }
+
+    store.mutations.ADD_PRODUCTION(state, {
+      id: 'production-closed',
+      name: 'Archive',
+      project_status_id: 'status-closed'
+    })
+
+    expect(state.productionMap.has('production-closed')).toBe(true)
+    expect(state.openProductions).toEqual([])
   })
 })

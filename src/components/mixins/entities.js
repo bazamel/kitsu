@@ -13,6 +13,7 @@ export const entitiesMixin = {
       displaySettings: {
         bigThumbnails: false,
         contactSheetMode: false,
+        fullTaskTypeNames: false,
         showAssignations: true,
         showInfos: true
       },
@@ -50,11 +51,13 @@ export const entitiesMixin = {
   computed: {
     ...mapGetters([
       'isCurrentUserClient',
-      'isCurrentUserManager',
       'nbSelectedTasks',
       'selectedTasks',
       'nbSelectedValidations'
     ]),
+    ...mapGetters({
+      isCurrentUserManager: 'isCurrentUserProductionManager'
+    }),
 
     searchField() {
       return this.$refs[`${this.type}-search-field`]
@@ -296,6 +299,30 @@ export const entitiesMixin = {
         })
         .catch(err => {
           this.errors.creatingTasks = true
+          console.error(err)
+        })
+    },
+
+    confirmCreateAllMissingTasks({ missingTaskTypeIds, selectionOnly }) {
+      this.errors.creatingTasks = false
+      this.loading.creatingAllTasks = true
+      const createForTaskType = taskTypeId =>
+        this.createTasks({
+          type: `${this.type}s`,
+          task_type_id: taskTypeId,
+          project_id: this.currentProduction.id,
+          selectionOnly
+        })
+      func
+        .runPromiseMapAsSeries(missingTaskTypeIds, createForTaskType)
+        .then(() => {
+          this.reset()
+          this.hideCreateTasksModal()
+          this.loading.creatingAllTasks = false
+        })
+        .catch(err => {
+          this.errors.creatingTasks = true
+          this.loading.creatingAllTasks = false
           console.error(err)
         })
     },

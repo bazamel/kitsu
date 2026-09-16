@@ -23,7 +23,17 @@
         @toggle-stick="metadataStickColumnClicked($event)"
       />
 
-      <table class="datatable">
+      <table-metadata-header-menu
+        ref="headerFieldMenu"
+        :is-edit-allowed="false"
+        :show-stick="false"
+        @sort-by-clicked="onSortByFieldClicked()"
+      />
+
+      <table
+        class="datatable"
+        :class="{ 'expand-task-types': displaySettings.fullTaskTypeNames }"
+      >
         <thead
           class="datatable-head"
           id="datatable-sequence"
@@ -35,21 +45,24 @@
               class="name sequence-name datatable-row-header"
               ref="th-sequence"
             >
-              <div class="flexrow">
-                <span class="flexrow-item">
-                  {{ $t('sequences.fields.name') }}
-                </span>
-                <button-simple
-                  class="is-small flexrow-item"
-                  icon="plus"
-                  :text="''"
-                  @click="onAddMetadataClicked"
-                  v-if="
-                    (isCurrentUserManager || isCurrentUserSupervisor) &&
-                    !isLoading
-                  "
-                />
-              </div>
+              <sortable-field-header
+                field-name="name"
+                :label="$t('sequences.fields.name')"
+                @show-menu="showFieldHeaderMenu"
+              >
+                <template #actions>
+                  <button-simple
+                    class="is-small flexrow-item"
+                    icon="plus"
+                    :text="''"
+                    @click="onAddMetadataClicked"
+                    v-if="
+                      (isCurrentUserManager || isCurrentUserSupervisor) &&
+                      !isLoading
+                    "
+                  />
+                </template>
+              </sortable-field-header>
             </th>
             <template v-if="displaySettings.showInfos">
               <metadata-header
@@ -77,7 +90,7 @@
                   ? `${offsets['validation-' + columnIndexInGrid]}px`
                   : '0'
               "
-              type="editor"
+              type="sequences"
               is-stick
               @show-header-menu="
                 event => showHeaderMenu(columnId, columnIndexInGrid, event)
@@ -96,7 +109,11 @@
                 isSequenceDescription
               "
             >
-              {{ $t('sequences.fields.description') }}
+              <sortable-field-header
+                field-name="description"
+                :label="$t('sequences.fields.description')"
+                @show-menu="showFieldHeaderMenu"
+              />
             </th>
 
             <th
@@ -185,6 +202,7 @@
                   estimation: !isSequenceEstimation
                 }"
                 namespace="sequences"
+                :production-id="currentProduction?.id"
                 v-model="metadataDisplayHeaders"
                 v-model:is-open="columnSelectorDisplayed"
                 v-if="displaySettings.showInfos"
@@ -295,7 +313,8 @@
                   :row-x="i"
                   :selected="isSelected(i, j)"
                   :sticked="true"
-                  :task-test="taskMap.get(sequence.validations.get(columnId))"
+                  :task-href="taskHref(sequence.validations?.get(columnId))"
+                  :task-test="taskMap.get(sequence.validations?.get(columnId))"
                   @select="infos => onTaskSelected(infos, true)"
                   @unselect="infos => onTaskUnselected(infos, true)"
                   v-for="(columnId, j) in stickedDisplayedValidationColumns"
@@ -414,6 +433,7 @@
                   :key="`${columnId}-${sequence.id}`"
                   :column="taskTypeMap.get(columnId)"
                   :entity="sequence"
+                  :task-href="taskHref(sequence.validations?.get(columnId))"
                   :task-test="
                     taskMap.get(
                       sequence.validations
@@ -448,19 +468,17 @@
 
     <table-info :is-loading="isLoading" :is-error="isError" big-cells />
 
-    <div
-      class="has-text-centered"
-      v-if="isEmptyList && !isCurrentUserClient && !isLoading"
-    >
-      <p class="info">
-        <img src="../../assets/illustrations/empty_shot.png" />
-      </p>
-      <p class="info">{{ $t('sequences.empty_list_client') }}</p>
-    </div>
+    <empty-list
+      :text="$t('sequences.empty_list')"
+      :read-only-text="$t('sequences.empty_list_read_only')"
+      :button-text="$t('sequences.new_sequences')"
+      @create="$emit('add-sequences')"
+      v-if="isEmptyList && !isLoading"
+    />
 
     <p class="has-text-centered nb-sequences" v-if="!isEmptyList && !isLoading">
       {{ displayedSequencesLength }}
-      {{ $tc('sequences.number', displayedSequencesLength) }}
+      {{ $t('sequences.number', { count: displayedSequencesLength }) }}
       <span
         v-if="
           displayedSequencesTimeSpent > 0 || displayedSequencesEstimation > 0
@@ -469,26 +487,22 @@
         ({{ formatDuration(displayedSequencesTimeSpent) }}
         {{
           isDurationInHours
-            ? $tc(
-                'main.hours_spent',
-                formatDuration(displayedSequencesTimeSpent, false)
-              )
-            : $tc(
-                'main.days_spent',
-                formatDuration(displayedSequencesTimeSpent, false)
-              )
+            ? $t('main.hours_spent', {
+                count: formatDuration(displayedSequencesTimeSpent, false)
+              })
+            : $t('main.days_spent', {
+                count: formatDuration(displayedSequencesTimeSpent, false)
+              })
         }},
         {{ formatDuration(displayedSequencesEstimation) }}
         {{
           isDurationInHours
-            ? $tc(
-                'main.hours_estimated',
-                formatDuration(displayedSequencesEstimation, false)
-              )
-            : $tc(
-                'main.man_days',
-                formatDuration(displayedSequencesEstimation, false)
-              )
+            ? $t('main.hours_estimated', {
+                count: formatDuration(displayedSequencesEstimation, false)
+              })
+            : $t('main.man_days', {
+                count: formatDuration(displayedSequencesEstimation, false)
+              })
         }})
       </span>
     </p>
@@ -498,7 +512,7 @@
 <script>
 import { mapGetters, mapActions } from 'vuex'
 
-import { getEntityPath } from '@/lib/path'
+import { getEntityPath, getTaskHref } from '@/lib/path'
 import { descriptorMixin } from '@/components/mixins/descriptors'
 import { domMixin } from '@/components/mixins/dom'
 import { entityListMixin } from '@/components/mixins/entity_list'
@@ -507,10 +521,12 @@ import { selectionListMixin } from '@/components/mixins/selection'
 
 import ButtonSimple from '@/components/widgets/ButtonSimple.vue'
 import DescriptionCell from '@/components/cells/DescriptionCell.vue'
+import EmptyList from '@/components/widgets/EmptyList.vue'
 import EntityThumbnail from '@/components/widgets/EntityThumbnail.vue'
 import MetadataHeader from '@/components/cells/MetadataHeader.vue'
 import MetadataInput from '@/components/cells/MetadataInput.vue'
 import RowActionsCell from '@/components/cells/RowActionsCell.vue'
+import SortableFieldHeader from '@/components/widgets/SortableFieldHeader.vue'
 import TableMetadataHeaderMenu from '@/components/widgets/TableMetadataHeaderMenu.vue'
 import TableMetadataSelectorMenu from '@/components/widgets/TableMetadataSelectorMenu.vue'
 import TableHeaderMenu from '@/components/widgets/TableHeaderMenu.vue'
@@ -556,12 +572,20 @@ export default {
     }
   },
 
-  emits: ['create-tasks', 'delete-clicked', 'edit-clicked', 'metadata-changed'],
+  emits: [
+    'add-sequences',
+    'create-tasks',
+    'delete-clicked',
+    'edit-clicked',
+    'metadata-changed'
+  ],
 
   data() {
     return {
       type: 'sequence',
       hiddenColumns: {},
+      lastFieldHeaderMenuDisplayed: null,
+      lastFieldHeaderMenuLabel: null,
       lastHeaderMenuDisplayed: null,
       lastMetadataHeaderMenuDisplayed: null,
       lastHeaderMenuDisplayedIndexInGrid: null,
@@ -588,10 +612,12 @@ export default {
   components: {
     ButtonSimple,
     DescriptionCell,
+    EmptyList,
     EntityThumbnail,
     MetadataHeader,
     MetadataInput,
     RowActionsCell,
+    SortableFieldHeader,
     TableHeaderMenu,
     TableMetadataHeaderMenu,
     TableMetadataSelectorMenu,
@@ -610,10 +636,9 @@ export default {
       'displayedSequencesTimeSpent',
       'displaySettings.bigThumbnails',
       'isCurrentUserAdmin',
-      'isCurrentUserManager',
-      'isCurrentUserSupervisor',
       'isCurrentUserClient',
       'isSingleSequence',
+      'isTVShow',
       'isSequenceDescription',
       'isSequenceEstimation',
       'isSequenceResolution',
@@ -631,6 +656,13 @@ export default {
       'taskTypeMap',
       'user'
     ]),
+
+    // Production-scoped: effective role on the current production (global
+    // admins/managers still pass, but a per-project override wins).
+    ...mapGetters({
+      isCurrentUserManager: 'isCurrentUserProductionManager',
+      isCurrentUserSupervisor: 'isCurrentUserProductionSupervisor'
+    }),
 
     isEmptyList() {
       return (
@@ -671,6 +703,17 @@ export default {
 
     isSelected(lineIndex, columnIndex) {
       return this.sequenceSelectionGrid.has(`${lineIndex}-${columnIndex}`)
+    },
+
+    taskHref(taskId) {
+      return getTaskHref(
+        this.$router,
+        this.taskMap.get(taskId),
+        this.currentProduction,
+        this.isTVShow,
+        this.currentEpisode,
+        this.taskTypeMap
+      )
     },
 
     sequencePath(sequenceId) {
@@ -763,6 +806,18 @@ thead .name.sequence-name {
   width: 150px;
 }
 
+.expand-task-types :deep(.validation-cell) {
+  width: auto;
+  min-width: 150px;
+  max-width: none;
+}
+
+.expand-task-types :deep(.task-type-name) {
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .estimation,
 .time-spent {
   min-width: 70px;
@@ -789,10 +844,6 @@ span.thumbnail-empty {
 
 .info {
   margin-top: 2em;
-}
-
-.info img {
-  max-width: 80vh;
 }
 
 .datatable-row th.name {

@@ -1,20 +1,21 @@
 <template>
   <tr
     class="datatable-row department-row pointer"
-    @click="toggleDepartment(departmentEntry.id)"
+    role="button"
+    tabindex="0"
+    @click="$emit('toggle-department', departmentEntry.id)"
+    @keydown.enter.prevent="$emit('toggle-department', departmentEntry.id)"
+    @keydown.space.prevent="$emit('toggle-department', departmentEntry.id)"
   >
     <td class="datatable-row-header strong department-header" colspan="3">
       <div
         class="flexrow department-header-content"
         :style="getDepartmentStyle(departmentEntry.id, '99')"
       >
-        <chevron-right-icon
-          class="flexrow-item"
-          v-if="collapsedDepartments[departmentEntry.id]"
-        />
+        <chevron-right-icon class="flexrow-item" v-if="isCollapsed" />
         <chevron-down-icon class="flexrow-item" v-else />
         <div class="flexrow-item">
-          {{ departmentMap.get(departmentEntry.id).name }}
+          {{ departmentMap.get(departmentEntry.id)?.name }}
         </div>
       </div>
     </td>
@@ -34,21 +35,25 @@
         :style="getDepartmentStyle(departmentEntry.id, '33')"
         v-for="month in monthsBetweenStartAndNow"
       >
-        {{ departmentExpense?.[month.format('YYYY-MM')]?.toLocaleString() }}
+        {{
+          departmentExpense?.[month.format('YYYY-MM')]?.toLocaleString(
+            localeCode
+          )
+        }}
       </td>
       <td
         class="total-cost remaining-previsional"
         :style="getDepartmentStyle(departmentEntry.id, '33')"
         v-if="isShowingExpenses"
       >
-        {{ departmentExpense.total.toLocaleString() }}
+        {{ departmentExpense.total.toLocaleString(localeCode) }}
       </td>
       <td
         class="total-cost"
         :style="getDepartmentStyle(departmentEntry.id, '33')"
         v-if="isShowingExpenses"
       >
-        {{ departmentDonePrevisional.toLocaleString() }}
+        {{ departmentDonePrevisional.toLocaleString(localeCode) }}
       </td>
       <td
         class="total-cost gap"
@@ -60,7 +65,9 @@
         v-if="isShowingExpenses"
       >
         {{
-          (departmentDonePrevisional - departmentExpense.total).toLocaleString()
+          (departmentDonePrevisional - departmentExpense.total).toLocaleString(
+            localeCode
+          )
         }}
       </td>
     </template>
@@ -79,7 +86,7 @@
       :style="getDepartmentStyle(departmentEntry.id, '33')"
       v-if="isShowingExpenses"
     >
-      {{ departmentRemainingPrevisional.toLocaleString() }}
+      {{ departmentRemainingPrevisional.toLocaleString(localeCode) }}
     </td>
     <td
       :style="getDepartmentStyle(departmentEntry.id, '33')"
@@ -89,7 +96,7 @@
       {{
         (
           departmentExpense.total + departmentRemainingPrevisional
-        ).toLocaleString()
+        ).toLocaleString(localeCode)
       }}
     </td>
     <td
@@ -107,7 +114,7 @@
       }"
       v-if="isShowingExpenses"
     >
-      {{ departmentTotalGap.toLocaleString() }}
+      {{ departmentTotalGap.toLocaleString(localeCode) }}
     </td>
     <td
       class="actions"
@@ -117,9 +124,15 @@
 </template>
 
 <script setup>
+import { localeCode } from '@/lib/lang'
 import { computed } from 'vue'
+import { useStore } from 'vuex'
 
 import { ChevronDownIcon, ChevronRightIcon } from 'lucide-vue-next'
+
+const store = useStore()
+
+defineEmits(['toggle-department'])
 
 const props = defineProps({
   departmentEntry: {
@@ -166,19 +179,13 @@ const props = defineProps({
     type: Object,
     required: true
   },
-  collapsedDepartments: {
-    type: Object,
-    required: true
-  },
-  departmentMap: {
-    type: Object,
-    required: true
-  },
-  toggleDepartment: {
-    type: Function,
-    required: true
+  isCollapsed: {
+    type: Boolean,
+    default: false
   }
 })
+
+const departmentMap = computed(() => store.getters.departmentMap)
 
 const departmentExpense = computed(() => {
   return props.convertedExpenses[props.departmentEntry.id] || { total: 0 }
@@ -199,10 +206,10 @@ const departmentTotalGap = computed(() => {
     : 0
 })
 
-/* It sets the background with the color of the department. */
 const getDepartmentStyle = (departmentId, opacity) => {
+  const department = departmentMap.value.get(departmentId)
   return {
-    backgroundColor: props.departmentMap.get(departmentId).color + opacity
+    backgroundColor: department ? department.color + opacity : undefined
   }
 }
 
@@ -221,7 +228,7 @@ const getDepartmentMonthCost = (departmentEntry, month) => {
     cost += props.hardwareItemsCosts[departmentEntry.id]?.[monthKey] || 0
     cost += props.softwareLicensesCosts[departmentEntry.id]?.[monthKey] || 0
   }
-  return cost ? cost.toLocaleString() : ''
+  return cost ? cost.toLocaleString(localeCode.value) : ''
 }
 </script>
 

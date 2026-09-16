@@ -6,7 +6,14 @@
     }"
   >
     <div class="section-menu">
-      <div class="flexrow unselectable" @click="toggleSectionList">
+      <div
+        class="flexrow unselectable"
+        role="button"
+        tabindex="0"
+        @click="toggleSectionList"
+        @keydown.enter.prevent="toggleSectionList"
+        @keydown.space.prevent="toggleSectionList"
+      >
         <div
           class="selected-section-line flexrow-item flexrow"
           v-if="currentSection"
@@ -28,7 +35,7 @@
             :stroke-width="1.5"
             v-else-if="currentSection.value === 'budget'"
           />
-          {{ currentSection.label }}
+          <span class="section-label">{{ currentSection.label }}</span>
         </div>
         <chevron-down-icon class="down-icon flexrow-item" />
       </div>
@@ -163,6 +170,17 @@ export default {
         this.episodeId,
         section.plugin_id
       )
+      // The all pseudo-episode is typed on the playlists page: coming from
+      // the shot side, stay on the shot side.
+      const isShotContext =
+        this.section === 'shots' || this.$route.query.for_entity === 'shot'
+      if (
+        section.value === 'playlists' &&
+        this.episodeId === 'all' &&
+        isShotContext
+      ) {
+        result.query = { ...result.query, for_entity: 'shot' }
+      }
       return result
     }
   },
@@ -290,6 +308,7 @@ hr {
 .section-icon {
   cursor: pointer;
   margin-right: 0.8em;
+  min-width: 20px;
   width: 20px;
 }
 
@@ -299,5 +318,19 @@ svg.section-icon {
 
 .dark svg.section-icon {
   color: #ffffff;
+}
+
+@media screen and (max-width: 768px) {
+  .selected-section-line {
+    min-width: auto;
+
+    .section-icon {
+      margin-right: 0;
+    }
+
+    .section-label {
+      display: none;
+    }
+  }
 }
 </style>

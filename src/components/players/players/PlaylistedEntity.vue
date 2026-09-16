@@ -5,12 +5,13 @@
         'playlisted-entity': true,
         playing: isPlaying
       }"
+      @click.prevent="onPlayClick"
     >
-      <div class="thumbnail-wrapper" @click.prevent="onPlayClick">
+      <div class="thumbnail-wrapper">
         <span
           class="remove-button flexrow-item"
           :title="$t('playlists.remove')"
-          @click.prevent="onRemoveClick"
+          @click.stop.prevent="onRemoveClick"
           v-if="!readOnly && (isCurrentUserManager || isCurrentUserSupervisor)"
         >
           <x-icon />
@@ -33,13 +34,16 @@
             : 'none',
           'padding-bottom': '5px'
         }"
-        @click.prevent="onPlayClick"
       >
         {{ entity.parent_name }} / {{ entity.name }}
       </div>
 
       <template v-if="!readOnly">
-        <div class="preview-choice" v-if="taskTypeOptions.length > 0">
+        <div
+          class="preview-choice"
+          @click.stop
+          v-if="taskTypeOptions.length > 0"
+        >
           <combobox
             :thin="true"
             :width="150"
@@ -254,6 +258,9 @@ const onDragover = event => {
 }
 
 const onDropped = event => {
+  // Cancel the drop so a foreign drag (OS file) can't trigger the
+  // browser's default open-file action over the app.
+  event.preventDefault()
   dropAreaRef.value.style.width = '15px'
   emit('entity-dropped', {
     before: {

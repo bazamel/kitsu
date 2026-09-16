@@ -25,7 +25,17 @@
         @toggle-stick="metadataStickColumnClicked($event)"
       />
 
-      <table class="datatable">
+      <table-metadata-header-menu
+        ref="headerFieldMenu"
+        :is-edit-allowed="false"
+        :show-stick="false"
+        @sort-by-clicked="onSortByFieldClicked()"
+      />
+
+      <table
+        class="datatable"
+        :class="{ 'expand-task-types': displaySettings.fullTaskTypeNames }"
+      >
         <thead
           class="datatable-head"
           id="datatable-episode"
@@ -37,21 +47,24 @@
               class="name episode-name datatable-row-header"
               ref="th-episode"
             >
-              <div class="flexrow">
-                <span class="flexrow-item">
-                  {{ $t('episodes.fields.name') }}
-                </span>
-                <button-simple
-                  class="is-small flexrow-item"
-                  icon="plus"
-                  :text="''"
-                  @click="onAddMetadataClicked"
-                  v-if="
-                    (isCurrentUserManager || isCurrentUserSupervisor) &&
-                    !isLoading
-                  "
-                />
-              </div>
+              <sortable-field-header
+                field-name="name"
+                :label="$t('episodes.fields.name')"
+                @show-menu="showFieldHeaderMenu"
+              >
+                <template #actions>
+                  <button-simple
+                    class="is-small flexrow-item"
+                    icon="plus"
+                    :text="''"
+                    @click="onAddMetadataClicked"
+                    v-if="
+                      (isCurrentUserManager || isCurrentUserSupervisor) &&
+                      !isLoading
+                    "
+                  />
+                </template>
+              </sortable-field-header>
             </th>
 
             <template v-if="displaySettings.showInfos">
@@ -81,7 +94,7 @@
                     ? `${offsets['validation-' + columnIndexInGrid]}px`
                     : '0'
                 "
-                type="editor"
+                type="episodes"
                 is-stick
                 @show-header-menu="
                   event => showHeaderMenu(columnId, columnIndexInGrid, event)
@@ -101,7 +114,11 @@
                 isEpisodeDescription
               "
             >
-              {{ $t('episodes.fields.description') }}
+              <sortable-field-header
+                field-name="description"
+                :label="$t('episodes.fields.description')"
+                @show-menu="showFieldHeaderMenu"
+              />
             </th>
 
             <template v-if="displaySettings.showInfos">
@@ -202,6 +219,7 @@
                   estimation: !isEpisodeEstimation
                 }"
                 namespace="episodes"
+                :production-id="currentProduction?.id"
                 v-model="metadataDisplayHeaders"
                 v-model:is-open="columnSelectorDisplayed"
                 v-if="displaySettings.showInfos"
@@ -308,7 +326,8 @@
                   :row-x="i"
                   :selected="isSelected(i, j)"
                   :sticked="true"
-                  :task-test="taskMap.get(episode.validations.get(columnId))"
+                  :task-href="taskHref(episode.validations?.get(columnId))"
+                  :task-test="taskMap.get(episode.validations?.get(columnId))"
                   @select="infos => onTaskSelected(infos, true)"
                   @unselect="infos => onTaskUnselected(infos, true)"
                   v-for="(columnId, j) in stickedDisplayedValidationColumns"
@@ -449,6 +468,7 @@
                   :contact-sheet="displaySettings.contactSheetMode"
                   :column="taskTypeMap.get(columnId)"
                   :entity="episode"
+                  :task-href="taskHref(episode.validations?.get(columnId))"
                   :task-test="
                     taskMap.get(
                       episode.validations
@@ -483,45 +503,39 @@
 
     <table-info :is-loading="isLoading" :is-error="isError" big-cells />
 
-    <div
-      class="has-text-centered"
-      v-if="isEmptyList && isCurrentUserClient && !isLoading"
-    >
-      <p class="info">
-        <img src="../../assets/illustrations/empty_shot.png" />
-      </p>
-      <p class="info">{{ $t('episodes.empty_list_client') }}</p>
-    </div>
+    <empty-list
+      :text="$t('episodes.empty_list')"
+      :read-only-text="$t('episodes.empty_list_read_only')"
+      :button-text="$t('episodes.new_episodes')"
+      @create="$emit('add-episodes')"
+      v-if="isEmptyList && !isLoading"
+    />
 
     <p class="has-text-centered nb-episodes" v-if="!isEmptyList && !isLoading">
       {{ displayedEpisodesLength }}
-      {{ $tc('episodes.number', displayedEpisodesLength) }}
+      {{ $t('episodes.number', { count: displayedEpisodesLength }) }}
       <span
         v-if="displayedEpisodesTimeSpent > 0 || displayedEpisodesEstimation > 0"
       >
         ({{ formatDuration(displayedEpisodesTimeSpent) }}
         {{
           isDurationInHours
-            ? $tc(
-                'main.hours_spent',
-                formatDuration(displayedEpisodesTimeSpent, false)
-              )
-            : $tc(
-                'main.days_spent',
-                formatDuration(displayedEpisodesTimeSpent, false)
-              )
+            ? $t('main.hours_spent', {
+                count: formatDuration(displayedEpisodesTimeSpent, false)
+              })
+            : $t('main.days_spent', {
+                count: formatDuration(displayedEpisodesTimeSpent, false)
+              })
         }},
         {{ formatDuration(displayedEpisodesEstimation) }}
         {{
           isDurationInHours
-            ? $tc(
-                'main.hours_estimated',
-                formatDuration(displayedEpisodesEstimation, false)
-              )
-            : $tc(
-                'main.man_days',
-                formatDuration(displayedEpisodesEstimation, false)
-              )
+            ? $t('main.hours_estimated', {
+                count: formatDuration(displayedEpisodesEstimation, false)
+              })
+            : $t('main.man_days', {
+                count: formatDuration(displayedEpisodesEstimation, false)
+              })
         }})
       </span>
     </p>
@@ -531,6 +545,8 @@
 <script>
 import { mapGetters, mapActions } from 'vuex'
 
+import { getTaskHref } from '@/lib/path'
+
 import { descriptorMixin } from '@/components/mixins/descriptors'
 import { domMixin } from '@/components/mixins/dom'
 import { entityListMixin } from '@/components/mixins/entity_list'
@@ -539,10 +555,12 @@ import { selectionListMixin } from '@/components/mixins/selection'
 
 import ButtonSimple from '@/components/widgets/ButtonSimple.vue'
 import DescriptionCell from '@/components/cells/DescriptionCell.vue'
+import EmptyList from '@/components/widgets/EmptyList.vue'
 import EntityThumbnail from '@/components/widgets/EntityThumbnail.vue'
 import MetadataHeader from '@/components/cells/MetadataHeader.vue'
 import MetadataInput from '@/components/cells/MetadataInput.vue'
 import RowActionsCell from '@/components/cells/RowActionsCell.vue'
+import SortableFieldHeader from '@/components/widgets/SortableFieldHeader.vue'
 import TableMetadataHeaderMenu from '@/components/widgets/TableMetadataHeaderMenu.vue'
 import TableMetadataSelectorMenu from '@/components/widgets/TableMetadataSelectorMenu.vue'
 import TableHeaderMenu from '@/components/widgets/TableHeaderMenu.vue'
@@ -593,6 +611,7 @@ export default {
   },
 
   emits: [
+    'add-episodes',
     'create-tasks',
     'delete-clicked',
     'edit-clicked',
@@ -604,6 +623,8 @@ export default {
     return {
       type: 'episode',
       hiddenColumns: {},
+      lastFieldHeaderMenuDisplayed: null,
+      lastFieldHeaderMenuLabel: null,
       lastHeaderMenuDisplayed: null,
       lastMetadataHeaderMenuDisplayed: null,
       lastHeaderMenuDisplayedIndexInGrid: null,
@@ -628,10 +649,12 @@ export default {
   components: {
     ButtonSimple,
     DescriptionCell,
+    EmptyList,
     EntityThumbnail,
     MetadataHeader,
     MetadataInput,
     RowActionsCell,
+    SortableFieldHeader,
     TableHeaderMenu,
     TableMetadataHeaderMenu,
     TableMetadataSelectorMenu,
@@ -655,10 +678,9 @@ export default {
       'displayedEpisodesTimeSpent',
       'displaySettings.bigThumbnails',
       'isCurrentUserAdmin',
-      'isCurrentUserManager',
-      'isCurrentUserSupervisor',
       'isCurrentUserClient',
       'isSingleEpisode',
+      'isTVShow',
       'isEpisodeDescription',
       'isEpisodeEstimation',
       'isEpisodeResolution',
@@ -672,10 +694,16 @@ export default {
       'user'
     ]),
 
+    // Production-scoped: effective role on the current production (global
+    // admins/managers still pass, but a per-project override wins).
+    ...mapGetters({
+      isCurrentUserManager: 'isCurrentUserProductionManager',
+      isCurrentUserSupervisor: 'isCurrentUserProductionSupervisor'
+    }),
+
     isEmptyList() {
       return (
-        this.displayedEpisodes.length &&
-        this.displayedEpisodes[0].length === 0 &&
+        this.displayedEpisodes.length === 0 &&
         !this.isLoading &&
         !this.isError &&
         (!this.episodeSearchText || this.episodeSearchText.length === 0)
@@ -711,6 +739,17 @@ export default {
 
     isSelected(lineIndex, columnIndex) {
       return this.episodeSelectionGrid.has(`${lineIndex}-${columnIndex}`)
+    },
+
+    taskHref(taskId) {
+      return getTaskHref(
+        this.$router,
+        this.taskMap.get(taskId),
+        this.currentProduction,
+        this.isTVShow,
+        this.currentEpisode,
+        this.taskTypeMap
+      )
     },
 
     episodePath(episodeId) {
@@ -825,6 +864,18 @@ thead .name.episode-name {
   width: 150px;
 }
 
+.expand-task-types :deep(.validation-cell) {
+  width: auto;
+  min-width: 150px;
+  max-width: none;
+}
+
+.expand-task-types :deep(.task-type-name) {
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .estimation,
 .time-spent {
   min-width: 70px;
@@ -845,10 +896,6 @@ span.thumbnail-empty {
 
 .info {
   margin-top: 2em;
-}
-
-.info img {
-  max-width: 80vh;
 }
 
 .datatable-row th.name {

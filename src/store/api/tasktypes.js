@@ -48,8 +48,22 @@ export default {
     return await client.ppost('/api/data/task-type-links', data)
   },
 
-  deleteTaskType(taskType) {
-    return client.pdel(`/api/data/task-types/${taskType.id}`)
+  reorderTaskTypeLinks(projectId, taskTypeIds) {
+    return client.ppost(
+      `/api/actions/projects/${projectId}/task-type-links/reorder`,
+      { task_type_ids: taskTypeIds }
+    )
+  },
+
+  reorderTaskTypes(taskTypeIds) {
+    return client.ppost('/api/actions/task-types/reorder', {
+      task_type_ids: taskTypeIds
+    })
+  },
+
+  deleteTaskType(taskType, force = false) {
+    const query = force ? '?force=true' : ''
+    return client.pdel(`/api/data/task-types/${taskType.id}${query}`)
   },
 
   getTaskType(taskTypeId) {

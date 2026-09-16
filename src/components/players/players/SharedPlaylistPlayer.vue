@@ -30,6 +30,7 @@
             @frame-update="onFrameUpdate"
             @max-duration-update="onMaxDurationUpdate"
             @panzoom-changed="onPanzoomChanged"
+            @panzoom-ready="onPanzoomReady"
             @play-next="onPlayNext"
             @video-loaded="onVideoLoaded"
             v-show="isMovie && !loading"
@@ -38,14 +39,14 @@
           <picture-viewer
             ref="picturePlayer"
             :big="true"
-            :default-height="600"
+            :default-height="pictureHeight"
             :full-screen="false"
             :light="false"
             :margin-bottom="0"
-            :panzoom="true"
             :preview="currentPreview"
             :url-prefix="sharedApiPrefix"
             high-quality
+            @panzoom-changed="onPanzoomChanged"
             v-show="isPicture && !loading"
           />
 
@@ -97,6 +98,7 @@
           </div>
 
           <shared-annotation-overlay
+            ref="annotationOverlay"
             :annotations="currentAnnotations"
             :current-frame="currentFrameNumber"
             :frame-duration="frameDuration"
@@ -160,7 +162,9 @@
     <shared-playlist-button-bar
       :can-comment="canComment"
       :current-frame-display="currentFrameDisplay"
+      :current-preview-index="currentPreviewIndex"
       :current-time-formatted="currentTimeFormatted"
+      :entity-preview-length="currentEntityPreviewLength"
       :guest-id="guestId"
       :is-full-screen="isFullScreen"
       :is-movie="isMovie"
@@ -176,10 +180,12 @@
       v-model:is-hd="isHd"
       v-model:is-muted="isMuted"
       v-model:is-repeating="isRepeating"
-      v-model:is-zoom-enabled="isZoomEnabled"
       v-model:volume="volume"
+      @next-preview="onNextPreviewClicked"
       @pause="pause"
       @play="play"
+      @previous-preview="onPreviousPreviewClicked"
+      @reset-zoom="onResetZoom"
       @toggle-full-screen="toggleFullScreen"
       @toggle-sound="onToggleSoundClicked"
     />
@@ -188,11 +194,8 @@
       :entity-list="entityListForProgress"
       :fps="fps"
       :frame-duration="frameDuration"
-      :is-full-mode="false"
       :is-full-screen="false"
-      :movie-dimensions="movieDimensions"
       :nb-frames="nbFrames"
-      :preview-id="currentPreview ? currentPreview.id : ''"
       :playlist-duration="playlistDuration"
       :playlist-progress="currentPlaylistProgress"
       :playlist-shot-position="playlistShotPosition"
@@ -244,16 +247,14 @@ import { useStore } from 'vuex'
 
 import darkTimesliderUrl from '@/assets/background/video-timeslider-dark.png'
 import { usePanzoomSync } from '@/composables/panzoom'
+import { useMediaKind } from '@/composables/players/mediaKind'
 import {
-  isDiffPreview,
-  isMarkdownPreview,
-  isModelPreview,
-  isMoviePreview,
-  isPdfPreview,
-  isPicturePreview,
-  isSoundPreview
-} from '@/lib/preview'
-import { floorToFrame, formatTime } from '@/lib/video'
+  isAltLetter,
+  undoRedoCommand
+} from '@/composables/players/previewShortcuts'
+import { usePlayerTransport } from '@/composables/players/transport'
+import { mergeAnnotationsByFrame } from '@/lib/players/annotation'
+import { DEFAULT_FPS, floorToFrame, formatTime } from '@/lib/video'
 
 import SharedAnnotationOverlay from '@/components/players/annotations/SharedAnnotationOverlay.vue'
 import SharedPlaylistButtonBar from '@/components/players/bars/SharedPlaylistButtonBar.vue'
@@ -291,7 +292,13 @@ const emit = defineEmits(['logout'])
 const { panzoomTransform, onPanzoomChanged, resetPanzoomTransform } =
   usePanzoomSync()
 
+const annotationOverlay = ref(null)
 const container = ref(null)
+const videoContainer = ref(null)
+// Height available for the picture viewer: it must fill the same area the
+// annotation overlay fits into (the whole .video-container), otherwise a
+// fixed height left the image small and pushed annotations below it.
+const pictureHeight = ref(600)
 const currentFrameNumber = ref(0)
 const currentPlaylistProgress = ref(0)
 const currentPreviewIndex = ref(0)
@@ -303,10 +310,7 @@ const isCommentsHidden = ref(
 const isEntitiesHidden = ref(false)
 const isFullScreen = ref(false)
 const isHd = ref(true)
-const isMuted = ref(false)
-const isPlaying = ref(false)
-const isRepeating = ref(false)
-const isZoomEnabled = ref(false)
+const { isMuted, isPlaying, isRepeating } = usePlayerTransport()
 const maxDuration = ref(0)
 const movieDimensions = ref({ width: 0, height: 0 })
 const picturePlayer = ref(null)
@@ -321,6 +325,9 @@ const volume = ref(100)
 // Plain `let` (not ref) — only used by the watchers below.
 let firstEntityLoaded = false
 
+// requestAnimationFrame id for the picture playback timer (null when idle).
+let picturePlayFrame = null
+
 // Computed
 
 const entityList = computed(() => props.entities || [])
@@ -332,7 +339,9 @@ const sharedApiPrefix = computed(() =>
   props.token ? `/api/shared/playlists/${props.token}` : ''
 )
 
-const fps = computed(() => parseFloat(props.playlist?.project_fps) || 25)
+const fps = computed(
+  () => parseFloat(props.playlist?.project_fps) || DEFAULT_FPS
+)
 const frameDuration = computed(
   () => Math.round((1 / fps.value) * 10000) / 10000
 )
@@ -375,29 +384,41 @@ const currentPreview = computed(() => {
   return entity.preview_file_previews?.[currentPreviewIndex.value - 1]
 })
 
-const currentAnnotations = computed(
-  () => currentPreview.value?.annotations || []
-)
+// Legacy annotations store unrounded times, so the same frame can exist as
+// several entries; the players only ever match the first one, which hides
+// the others (and makes a newly drawn+saved annotation look lost when an
+// old entry sits on the same frame). Merge them onto the frame grid, exactly
+// like the studio PreviewPlayer, so old + new annotations all render.
+const currentAnnotations = computed(() => {
+  const anns = (currentPreview.value?.annotations || []).filter(
+    a => a.time >= 0
+  )
+  return mergeAnnotationsByFrame(anns, fps.value).sort(
+    (a, b) => a.time - b.time
+  )
+})
+
+// Number of preview files attached to the current entity (main preview +
+// its alternate previews / sub-previews). Used to drive the sub-preview
+// navigation just like the studio player.
+const currentEntityPreviewLength = computed(() => {
+  const entity = currentEntity.value
+  if (!entity?.preview_file_previews) return 0
+  return entity.preview_file_previews.length + 1
+})
 
 const extension = computed(() => currentPreview.value?.extension || '')
-const isMovie = computed(() => isMoviePreview(extension.value))
-const isPicture = computed(() => isPicturePreview(extension.value))
-const isSound = computed(() => isSoundPreview(extension.value))
-const isModel = computed(() => isModelPreview(extension.value))
-const isPdf = computed(() => isPdfPreview(extension.value))
-const isMarkdown = computed(() => isMarkdownPreview(extension.value))
-const isDiff = computed(() => isDiffPreview(extension.value))
-const isOtherFile = computed(
-  () =>
-    !!currentPreview.value &&
-    !isMovie.value &&
-    !isPicture.value &&
-    !isSound.value &&
-    !isModel.value &&
-    !isPdf.value &&
-    !isMarkdown.value &&
-    !isDiff.value
-)
+const {
+  isDiff,
+  isFile,
+  isMarkdown,
+  isModel,
+  isMovie,
+  isPdf,
+  isPicture,
+  isSound
+} = useMediaKind(extension)
+const isOtherFile = computed(() => !!currentPreview.value && isFile.value)
 
 const downloadUrl = computed(() => {
   if (!currentPreview.value) return ''
@@ -507,16 +528,83 @@ const entityListForProgress = computed(
 const play = () => {
   isPlaying.value = true
   if (isSound.value) soundPlayer.value?.play()
+  else if (isPicture.value) playPicture()
   else rawPlayer.value?.play()
 }
 
 const pause = () => {
   isPlaying.value = false
+  stopPicturePlayback()
   if (isSound.value) soundPlayer.value?.pause()
   else rawPlayer.value?.pause()
 }
 
 const togglePlay = () => (isPlaying.value ? pause() : play())
+
+// Picture playback: the picture viewer (not MultiVideoViewer, which is
+// movie-only) shows the image, and a timer advances the playlist after the
+// image's frame budget elapses — mirroring the studio player's playPicture.
+// Matches playlistFrameData's defaultPictureFrames so a picture is shown for
+// the same span the playlist-progress bar allots to it.
+const pictureFrameCount = () => Math.round(2 * fps.value)
+
+const stopPicturePlayback = () => {
+  if (picturePlayFrame !== null) cancelAnimationFrame(picturePlayFrame)
+  picturePlayFrame = null
+}
+
+const playPicture = () => {
+  stopPicturePlayback()
+  const total = pictureFrameCount()
+  let startFrame = currentFrameNumber.value
+  if (startFrame >= total - 1) startFrame = 0
+  const baseline = performance.now() - (startFrame / fps.value) * 1000
+  const step = () => {
+    if (!isPlaying.value || !isPicture.value) return
+    const frame = Math.floor(
+      ((performance.now() - baseline) / 1000) * fps.value
+    )
+    if (frame >= total) {
+      advancePlaylist()
+      return
+    }
+    onFrameUpdate(frame)
+    picturePlayFrame = requestAnimationFrame(step)
+  }
+  picturePlayFrame = requestAnimationFrame(step)
+}
+
+// Play whatever preview is currently selected, by type. Used when stepping
+// to the next sub-preview of the same entity during playback (a movie
+// sub-preview is a different file, so it must be (re)loaded first).
+const playCurrentPreview = () => {
+  if (!isPlaying.value) return
+  if (isSound.value) soundPlayer.value?.play()
+  else if (isPicture.value) playPicture()
+  else {
+    rawPlayer.value?.loadEntity(playingEntityIndex.value, 0)
+    nextTick(() => rawPlayer.value?.play())
+  }
+}
+
+// Advance playback: step through the current entity's sub-previews one by
+// one, then move to the next entity. Used when a movie ends or an image's
+// display time elapses.
+const advancePlaylist = () => {
+  const previewCount = Math.max(currentEntityPreviewLength.value, 1)
+  if (currentPreviewIndex.value < previewCount - 1) {
+    currentPreviewIndex.value += 1
+    currentFrameNumber.value = 0
+    nextTick(playCurrentPreview)
+    return
+  }
+  const next = playingEntityIndex.value + 1
+  if (next >= entityList.value.length) {
+    pause()
+    return
+  }
+  selectEntity(next)
+}
 
 const selectEntity = index => {
   if (index < 0 || index >= entityList.value.length) return
@@ -544,6 +632,38 @@ const selectEntity = index => {
 
 const previousEntity = () => selectEntity(playingEntityIndex.value - 1)
 const nextEntity = () => selectEntity(playingEntityIndex.value + 1)
+
+// Functions — sub-previews & zoom
+
+const onPreviousPreviewClicked = () => {
+  const length = currentEntityPreviewLength.value
+  if (length <= 1) return
+  const index = currentPreviewIndex.value - 1
+  currentPreviewIndex.value = index < 0 ? length - 1 : index
+}
+
+const onNextPreviewClicked = () => {
+  const length = currentEntityPreviewLength.value
+  if (length <= 1) return
+  const index = currentPreviewIndex.value + 1
+  currentPreviewIndex.value = index > length - 1 ? 0 : index
+}
+
+// The movie viewer creates its panzoom instance paused (panzoomActive
+// starts false in MultiVideoViewer); like the studio player we resume it
+// as soon as the instance is ready so pan/zoom is always available. The
+// picture viewer is live by default and needs no resume.
+const onPanzoomReady = () => {
+  rawPlayer.value?.resumePanZoom?.()
+}
+
+// The "loupe" button mirrors the studio player: it resets the zoom rather
+// than toggling a mode (pan/zoom on the media stays available at all times).
+const onResetZoom = () => {
+  rawPlayer.value?.resetPanZoom?.()
+  picturePlayer.value?.resetPanZoom?.()
+  resetPanzoomTransform()
+}
 
 const goPreviousFrame = () => {
   if (!rawPlayer.value) return
@@ -605,7 +725,7 @@ const onFrameUpdate = rawFrameNumber => {
     playlistFrameData.value.startDurationByIndex[playingEntityIndex.value]
   if (typeof startDuration === 'number' && playlistDuration.value > 0) {
     currentPlaylistProgress.value =
-      startDuration + frameNumber / (fps.value || 25)
+      startDuration + frameNumber / (fps.value || DEFAULT_FPS)
   }
 }
 
@@ -619,7 +739,10 @@ const onProgressPlaylistChanged = frameNumber => {
   const position = playlistShotPosition.value[frameNumber]
   if (!position) return
   const { index, start } = position
-  const localFrame = Math.round(frameNumber - start * fps.value)
+  // start carries the strip's +1 slot convention ((firstGlobalFrame + 1)
+  // / fps): compensate like the studio player, or every strip click
+  // seeks one frame early.
+  const localFrame = Math.round(frameNumber - start * fps.value) + 1
   if (index !== playingEntityIndex.value) {
     selectEntity(index)
     nextTick(() => rawPlayer.value?.setCurrentFrame(Math.max(localFrame, 0)))
@@ -630,9 +753,15 @@ const onProgressPlaylistChanged = frameNumber => {
 
 const onPlayNext = () => {
   if (!isPlaying.value) return
-  const isLast = playingEntityIndex.value >= entityList.value.length - 1
-  if (isLast) isPlaying.value = false
-  else rawPlayer.value?.playNext()
+  // Repeat loops the current movie like the studio player; without this
+  // the toggle did nothing (the viewer's own trim loop is inactive here).
+  if (isRepeating.value && isMovie.value) {
+    rawPlayer.value?.playNext()
+    return
+  }
+  // Step through sub-previews first, then the next entity (handles images
+  // too, which MultiVideoViewer's own playNext would skip).
+  advancePlaylist()
 }
 
 const onVideoLoaded = () => {
@@ -641,6 +770,10 @@ const onVideoLoaded = () => {
     width: dimensions.width || 0,
     height: dimensions.height || 0
   }
+  // Push the initial frame so the video-progress cursor sits on frame 1 and
+  // the annotation overlay renders the first frame's annotations right away
+  // (the viewer doesn't emit a frame-update until playback starts).
+  if (!isPlaying.value) onFrameUpdate(0)
 }
 
 const onMaxDurationUpdate = duration => {
@@ -702,6 +835,11 @@ const triggerPlayerResize = () => {
   }, 50)
 }
 
+const updatePictureHeight = () => {
+  const el = videoContainer.value
+  if (el?.clientHeight) pictureHeight.value = el.clientHeight
+}
+
 // Functions — keyboard
 
 const onKeyDown = event => {
@@ -710,6 +848,33 @@ const onKeyDown = event => {
   const stop = () => {
     event.preventDefault()
     event.stopPropagation()
+  }
+
+  // Left unconsumed, the browser's own undo rewinds the guest's comment draft
+  // instead of the last stroke. Swallow every variant whatever the state, this
+  // player having no redo; only the undo itself needs an annotating overlay.
+  // Matching rules live in undoRedoCommand.
+  const undoRedo = undoRedoCommand(event)
+  if (undoRedo) {
+    stop()
+    if (undoRedo === 'undo' && isAnnotating.value) {
+      annotationOverlay.value?.undo()
+    }
+    return
+  }
+
+  // Entity navigation reuses isAltLetter (shared with usePreviewShortcuts)
+  // so Alt+J/K match identically here. Arrows below stay event.code-only —
+  // no letter glyph to worry about.
+  if (isAltLetter(event, 'KeyJ', 'j')) {
+    stop()
+    previousEntity()
+    return
+  }
+  if (isAltLetter(event, 'KeyK', 'k')) {
+    stop()
+    nextEntity()
+    return
   }
 
   switch (event.code) {
@@ -726,18 +891,6 @@ const onKeyDown = event => {
       stop()
       if (event.altKey) nextEntity()
       else goNextFrame()
-      break
-    case 'KeyJ':
-      if (event.altKey) {
-        stop()
-        previousEntity()
-      }
-      break
-    case 'KeyK':
-      if (event.altKey) {
-        stop()
-        nextEntity()
-      }
       break
     case 'Home':
       rawPlayer.value?.setCurrentFrame(0)
@@ -772,17 +925,6 @@ watch(volume, newVolume => {
   nextTick(() => rawPlayer.value?.setVolume(newVolume))
 })
 
-watch(isZoomEnabled, enabled => {
-  const target = isMovie.value ? rawPlayer.value : picturePlayer.value
-  if (enabled) {
-    target?.resumePanZoom?.()
-  } else {
-    target?.pausePanZoom?.()
-    target?.resetPanZoom?.()
-    resetPanzoomTransform()
-  }
-})
-
 watch(isCommentsHidden, triggerPlayerResize)
 
 watch(isEntitiesHidden, hidden => {
@@ -792,18 +934,39 @@ watch(isEntitiesHidden, hidden => {
 
 watch(playingEntityIndex, () => nextTick(scrollPlayingEntityIntoView))
 
+// Reset pan/zoom whenever the displayed preview changes (entity or
+// sub-preview) so annotations stay aligned with the freshly-reset media.
+watch(
+  () => currentPreview.value?.id,
+  () =>
+    nextTick(() => {
+      const target = isMovie.value ? rawPlayer.value : picturePlayer.value
+      target?.resetPanZoom?.()
+      resetPanzoomTransform()
+    })
+)
+
 // Lifecycle
+
+let pictureResizeObserver = null
 
 onMounted(() => {
   window.addEventListener('keydown', onKeyDown, false)
   document.addEventListener('fullscreenchange', onFullScreenChange)
   document.addEventListener('webkitfullscreenchange', onFullScreenChange)
+  updatePictureHeight()
+  if (window.ResizeObserver && videoContainer.value) {
+    pictureResizeObserver = new ResizeObserver(updatePictureHeight)
+    pictureResizeObserver.observe(videoContainer.value)
+  }
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeyDown)
   document.removeEventListener('fullscreenchange', onFullScreenChange)
   document.removeEventListener('webkitfullscreenchange', onFullScreenChange)
+  pictureResizeObserver?.disconnect()
+  stopPicturePlayback()
 })
 </script>
 
@@ -943,6 +1106,7 @@ onBeforeUnmount(() => {
     border: 1px solid var(--border-soft);
     border-radius: 12px;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
     padding: 0.4em;
     position: relative;
     transition:
@@ -1033,6 +1197,12 @@ onBeforeUnmount(() => {
   margin-right: 0;
   max-height: 100%;
   max-width: 100%;
+  // The movie canvas centers via `margin: auto`, which doesn't apply to an
+  // inline canvas on desktop (only the mobile media query made the wrapper a
+  // flex box), so the video stuck to the left. Center it here too.
+  align-items: center;
+  display: flex;
+  justify-content: center;
 }
 
 .video-container {
@@ -1073,29 +1243,6 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 2px rgba(255, 87, 140, 0.25);
 }
 
-.shared-player :deep(.entity-status) {
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
-  height: 14px;
-  opacity: 0.55;
-  transition:
-    opacity 0.2s ease,
-    height 0.2s ease;
-
-  &:hover {
-    opacity: 0.95;
-  }
-
-  span {
-    background: var(--surface-raised);
-    border: 1px solid var(--border-strong);
-    border-radius: 8px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
-    color: var(--text);
-    font-size: 0.8em;
-    padding: 0.25em 0.6em;
-  }
-}
-
 .shared-player :deep(.frame-number) {
   background: var(--surface-raised);
   border: 1px solid var(--border-strong);
@@ -1116,25 +1263,11 @@ onBeforeUnmount(() => {
   background: var(--accent);
 }
 
+// Use the PlaylistProgress component's own styling (same look as the studio
+// player); only keep the layout bit so the bar isn't squeezed in the guest's
+// flex column.
 .shared-player :deep(.playlist-progress) {
-  background: #08080c !important;
-  border-bottom: 1px solid var(--border-soft) !important;
-  border-top: 1px solid var(--border-soft) !important;
   flex-shrink: 0;
-  height: 14px;
-  transition: height 0.2s ease-in-out;
-
-  &:hover {
-    height: 14px;
-  }
-}
-
-.shared-player :deep(.playlist-progress-position) {
-  border-left: 3px solid var(--accent);
-  border-radius: 0;
-  box-shadow: 0 0 10px rgba(124, 92, 255, 0.6);
-  height: 14px;
-  top: 0;
 }
 
 // Responsive

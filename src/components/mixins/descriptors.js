@@ -4,29 +4,13 @@
  */
 import { mapGetters } from 'vuex'
 
-// Descriptor choices are static per descriptor — no need to reparse them
-// for every row. Cache keyed by descriptor.id, cleared when it grows too large.
-const _checklistValuesCache = new Map()
+import {
+  getDescriptorChecklistValues,
+  getMetadataChecklistValues,
+  getMetadataFieldValue
+} from '@/composables/descriptors'
 
-export const getDescriptorChecklistValues = descriptor => {
-  const cached = _checklistValuesCache.get(descriptor.id)
-  if (cached) return cached
-  const values = descriptor.choices.reduce((result, choice) => {
-    if (choice && typeof choice === 'string' && choice.startsWith('[x] ')) {
-      result.push({ text: choice.slice(4), checked: true })
-    } else if (
-      choice &&
-      typeof choice === 'string' &&
-      choice.startsWith('[ ] ')
-    ) {
-      result.push({ text: choice.slice(4), checked: false })
-    }
-    return result
-  }, [])
-  const result = values.length === descriptor.choices.length ? values : []
-  _checklistValuesCache.set(descriptor.id, result)
-  return result
-}
+export { getDescriptorChecklistValues }
 
 export const descriptorMixin = {
   emits: [
@@ -77,6 +61,16 @@ export const descriptorMixin = {
       let value
       if (typeof event === 'string') {
         value = event
+      } else if (
+        event.inputType === 'historyUndo' ||
+        event.inputType === 'historyRedo'
+      ) {
+        // The browser rewrote the field on its own: its undo stack belongs to
+        // the frame, not to the focused element, so Ctrl+Z anywhere on the
+        // page replays the last edited cell. Put the stored value back instead
+        // of pushing this one onto every selected entry.
+        event.target.value = this.getMetadataFieldValue(descriptor, entry)
+        return
       } else if (!event.target.validity.valid) {
         return
       } else if (descriptor.data_type === 'boolean') {
@@ -150,20 +144,13 @@ export const descriptorMixin = {
     },
 
     showMetadataHeaderMenu(columnId, event) {
-      const headerMenuEl = this.$refs.headerMetadataMenu.$el
-      if (headerMenuEl.className === 'header-menu') {
-        headerMenuEl.className = 'header-menu hidden'
-      } else {
-        headerMenuEl.className = 'header-menu'
-        const headerElement = event.srcElement.parentNode.parentNode
-        const headerBox = headerElement.getBoundingClientRect()
-        const left = headerBox.left - 3
-        const top = headerBox.bottom + 11
-        const width = Math.max(100, headerBox.width - 1)
-        headerMenuEl.style.left = left + 'px'
-        headerMenuEl.style.top = top + 'px'
-        headerMenuEl.style.width = width + 'px'
-      }
+      this.showHeaderMenuAt(
+        'headerMetadataMenu',
+        event,
+        event => event.target.closest('th'),
+        { left: -3, top: 4 },
+        this.lastMetadataHeaderMenuDisplayed === columnId
+      )
       this.lastMetadataHeaderMenuDisplayed = columnId
     },
 
@@ -175,40 +162,11 @@ export const descriptorMixin = {
       return values
     },
 
-    getMetadataFieldValue(descriptor, entity) {
-      if (
-        entity.data &&
-        descriptor.field_name in entity.data &&
-        entity.data[descriptor.field_name] != null
-      ) {
-        return entity.data[descriptor.field_name]
-      } else if (
-        entity.entity_data &&
-        descriptor.field_name in entity.entity_data &&
-        entity.entity_data[descriptor.field_name] != null
-      ) {
-        return entity.entity_data[descriptor.field_name]
-      } else {
-        return ''
-      }
-    },
+    getMetadataFieldValue,
 
     getDescriptorChecklistValues,
 
-    getMetadataChecklistValues(descriptor, entity) {
-      let values
-      try {
-        values = JSON.parse(this.getMetadataFieldValue(descriptor, entity))
-      } catch {
-        values = {}
-      }
-      this.getDescriptorChecklistValues(descriptor).forEach(function (option) {
-        if (!(option.text in values)) {
-          values[option.text] = option.checked
-        }
-      })
-      return values
-    },
+    getMetadataChecklistValues,
 
     isSupervisorInDepartments(departments = []) {
       if (!Array.isArray(departments)) {

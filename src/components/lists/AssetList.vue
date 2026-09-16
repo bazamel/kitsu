@@ -25,7 +25,17 @@
         @toggle-stick="metadataStickColumnClicked($event)"
       />
 
-      <table class="datatable multi-section">
+      <table-metadata-header-menu
+        ref="headerFieldMenu"
+        :is-edit-allowed="false"
+        :show-stick="false"
+        @sort-by-clicked="onSortByFieldClicked()"
+      />
+
+      <table
+        class="datatable multi-section"
+        :class="{ 'expand-task-types': displaySettings.fullTaskTypeNames }"
+      >
         <thead class="datatable-head" v-columns-resizable id="datatable-asset">
           <tr>
             <th
@@ -37,21 +47,24 @@
               }"
               scope="col"
             >
-              <div class="flexrow">
-                <span class="flexrow-item">
-                  {{ $t('assets.fields.name') }}
-                </span>
-                <button-simple
-                  class="is-small flexrow-item"
-                  icon="plus"
-                  :text="''"
-                  @click="onAddMetadataClicked"
-                  v-if="
-                    (isCurrentUserManager || isCurrentUserSupervisor) &&
-                    !isLoading
-                  "
-                />
-              </div>
+              <sortable-field-header
+                field-name="name"
+                :label="$t('assets.fields.name')"
+                @show-menu="showFieldHeaderMenu"
+              >
+                <template #actions>
+                  <button-simple
+                    class="is-small flexrow-item add-metadata-button"
+                    icon="plus"
+                    :text="''"
+                    @click="onAddMetadataClicked"
+                    v-if="
+                      (isCurrentUserManager || isCurrentUserSupervisor) &&
+                      !isLoading
+                    "
+                  />
+                </template>
+              </sortable-field-header>
             </th>
 
             <th
@@ -61,7 +74,11 @@
               :style="{ left: `${nameWidth}px` }"
               v-if="hasStickyEpisode"
             >
-              {{ $t('assets.fields.episode') }}
+              <sortable-field-header
+                field-name="episode_id"
+                :label="$t('assets.fields.episode')"
+                @show-menu="showFieldHeaderMenu"
+              />
             </th>
 
             <metadata-header
@@ -113,7 +130,11 @@
                 metadataDisplayHeaders.readyFor
               "
             >
-              {{ $t('assets.fields.ready_for') }}
+              <sortable-field-header
+                field-name="ready_for"
+                :label="$t('assets.fields.ready_for')"
+                @show-menu="showFieldHeaderMenu"
+              />
             </th>
 
             <th
@@ -126,7 +147,11 @@
                 isAssetDescription
               "
             >
-              {{ $t('assets.fields.description') }}
+              <sortable-field-header
+                field-name="description"
+                :label="$t('assets.fields.description')"
+                @show-menu="showFieldHeaderMenu"
+              />
             </th>
 
             <th
@@ -140,7 +165,11 @@
                 metadataDisplayHeaders.timeSpent
               "
             >
-              {{ $t('assets.fields.time_spent') }}
+              <sortable-field-header
+                field-name="timeSpent"
+                :label="$t('assets.fields.time_spent')"
+                @show-menu="showFieldHeaderMenu"
+              />
             </th>
 
             <th
@@ -155,7 +184,11 @@
                 metadataDisplayHeaders.estimation
               "
             >
-              {{ $t('main.estimation_short') }}
+              <sortable-field-header
+                field-name="estimation"
+                :label="$t('main.estimation_short')"
+                @show-menu="showFieldHeaderMenu"
+              />
             </th>
 
             <th
@@ -167,7 +200,11 @@
                 metadataDisplayHeaders.resolution
               "
             >
-              {{ $t('shots.fields.resolution') }}
+              <sortable-field-header
+                field-name="resolution"
+                :label="$t('shots.fields.resolution')"
+                @show-menu="showFieldHeaderMenu"
+              />
             </th>
 
             <template v-if="displaySettings.showInfos">
@@ -222,6 +259,7 @@
                   estimation: !isAssetEstimation
                 }"
                 namespace="assets"
+                :production-id="currentProduction?.id"
                 v-model="metadataDisplayHeaders"
                 v-model:is-open="columnSelectorDisplayed"
                 v-if="displaySettings.showInfos"
@@ -249,7 +287,12 @@
               <th scope="rowgroup">
                 <span
                   class="datatable-row-header pointer"
+                  role="button"
+                  tabindex="0"
                   @click="$emit('asset-type-clicked', group[0].asset_type_name)"
+                  @keydown.enter.prevent="
+                    $emit('asset-type-clicked', group[0].asset_type_name)
+                  "
                 >
                   {{ group[0] ? group[0].asset_type_name : '' }}
                 </span>
@@ -355,6 +398,7 @@
                   :column="taskTypeMap.get(columnId)"
                   :entity="asset"
                   :task-test="taskMap.get(asset.validations.get(columnId))"
+                  :task-href="taskHref(asset.validations.get(columnId))"
                   :selected="isSelected(i, k, j)"
                   :row-x="getIndex(i, k)"
                   :column-y="j"
@@ -503,6 +547,7 @@
                   :contact-sheet="displaySettings.contactSheetMode"
                   :entity="asset"
                   :task-test="taskMap.get(asset.validations.get(columnId))"
+                  :task-href="taskHref(asset.validations.get(columnId))"
                   :selected="
                     isSelected(
                       i,
@@ -537,29 +582,14 @@
         </template>
       </table>
 
-      <div
-        class="has-text-centered"
-        v-if="isEmptyList && !isCurrentUserClient && !isLoading"
-      >
-        <p class="info">
-          <img src="../../assets/illustrations/empty_asset.png" />
-        </p>
-        <p class="info">{{ $t('assets.empty_list') }}</p>
-        <button-simple
-          class="level-item big-button"
-          :text="$t('assets.new_assets')"
-          @click="$emit('new-clicked')"
-        />
-      </div>
-      <div
-        class="has-text-centered"
-        v-if="isEmptyList && isCurrentUserClient && !isLoading"
-      >
-        <p class="info">
-          <img src="../../assets/illustrations/empty_asset.png" />
-        </p>
-        <p class="info">{{ $t('assets.empty_list_client') }}</p>
-      </div>
+      <empty-list
+        :text="$t('assets.empty_list')"
+        :read-only-text="$t('assets.empty_list_read_only')"
+        :button-text="$t('assets.new_assets')"
+        :illustration="emptyAssetIllustration"
+        @create="$emit('new-clicked')"
+        v-if="isEmptyList && !isLoading"
+      />
 
       <table-info :is-loading="isLoading" :is-error="isError" big-cells />
     </div>
@@ -580,24 +610,28 @@ import { entityListMixin } from '@/components/mixins/entity_list'
 import { formatListMixin } from '@/components/mixins/format'
 import { selectionListMixin } from '@/components/mixins/selection'
 
+import emptyAssetIllustration from '@/assets/illustrations/empty_asset.png'
 import preferences from '@/lib/preferences'
+import { getTaskHref } from '@/lib/path'
 import { sortTaskTypes } from '@/lib/sorting'
 import { range } from '@/lib/time'
 
-import AssetListNumbers from '@/components/widgets/AssetListNumbers.vue'
-import ButtonSimple from '@/components/widgets/ButtonSimple.vue'
-import ComboboxTaskType from '@/components/widgets/ComboboxTaskType.vue'
 import DescriptionCell from '@/components/cells/DescriptionCell.vue'
-import EntityThumbnail from '@/components/widgets/EntityThumbnail.vue'
 import MetadataHeader from '@/components/cells/MetadataHeader.vue'
 import MetadataInput from '@/components/cells/MetadataInput.vue'
 import RowActionsCell from '@/components/cells/RowActionsCell.vue'
+import ValidationCell from '@/components/cells/ValidationCell.vue'
+import ValidationHeader from '@/components/cells/ValidationHeader.vue'
+import AssetListNumbers from '@/components/widgets/AssetListNumbers.vue'
+import ButtonSimple from '@/components/widgets/ButtonSimple.vue'
+import ComboboxTaskType from '@/components/widgets/ComboboxTaskType.vue'
+import EmptyList from '@/components/widgets/EmptyList.vue'
+import EntityThumbnail from '@/components/widgets/EntityThumbnail.vue'
+import SortableFieldHeader from '@/components/widgets/SortableFieldHeader.vue'
 import TableHeaderMenu from '@/components/widgets/TableHeaderMenu.vue'
 import TableInfo from '@/components/widgets/TableInfo.vue'
 import TableMetadataHeaderMenu from '@/components/widgets/TableMetadataHeaderMenu.vue'
 import TableMetadataSelectorMenu from '@/components/widgets/TableMetadataSelectorMenu.vue'
-import ValidationCell from '@/components/cells/ValidationCell.vue'
-import ValidationHeader from '@/components/cells/ValidationHeader.vue'
 
 import assetStore from '@/store/modules/assets'
 import assetTypeStore from '@/store/modules/assettypes'
@@ -620,10 +654,12 @@ export default {
     ButtonSimple,
     ComboboxTaskType,
     DescriptionCell,
+    EmptyList,
     EntityThumbnail,
     MetadataInput,
     MetadataHeader,
     RowActionsCell,
+    SortableFieldHeader,
     TableInfo,
     TableHeaderMenu,
     TableMetadataHeaderMenu,
@@ -679,9 +715,11 @@ export default {
     return {
       type: 'asset',
       columnSelectorDisplayed: false,
+      emptyAssetIllustration,
       hiddenColumns: {},
-      isSelectableMap: {},
       lastSelection: null,
+      lastFieldHeaderMenuDisplayed: null,
+      lastFieldHeaderMenuLabel: null,
       lastHeaderMenuDisplayed: null,
       lastMetadataHeaderMenuDisplayed: null,
       lastHeaderMenuDisplayedIndexInGrid: null,
@@ -741,8 +779,6 @@ export default {
       'isAssetDescription',
       'isAssetResolution',
       'isCurrentUserClient',
-      'isCurrentUserManager',
-      'isCurrentUserSupervisor',
       'isShowAssignations',
       'isAssetEstimation',
       'isAssetTime',
@@ -754,6 +790,13 @@ export default {
       'taskMap',
       'user'
     ]),
+
+    // Production-scoped: effective role on the current production (global
+    // admins/managers still pass, but a per-project override wins).
+    ...mapGetters({
+      isCurrentUserManager: 'isCurrentUserProductionManager',
+      isCurrentUserSupervisor: 'isCurrentUserProductionSupervisor'
+    }),
 
     assetCache() {
       return assetStore.cache
@@ -903,8 +946,8 @@ export default {
       const mainEpisode = this.episodeMap.get(asset.episode_id)
       const mainEpisodeName = mainEpisode ? mainEpisode.name : 'MP'
       const episodeNames = (asset.casting_episode_ids || [])
-        .map(eId => this.episodeMap.get(eId).name)
-        .filter(name => name !== mainEpisodeName)
+        .map(eId => this.episodeMap.get(eId)?.name)
+        .filter(name => name && name !== mainEpisodeName)
       let episodeNameString = ''
       if (episodeNames.length > 2) {
         if (full) {
@@ -920,23 +963,23 @@ export default {
         : mainEpisodeName
     },
 
-    // Selectable if the task type is included in the workflow.
+    // Selectable if the cell already holds a task or if the task type is
+    // included in the workflow. Cells with existing tasks stay actionable
+    // even when a workflow change removed their task type, so they can
+    // still be selected and managed instead of freezing.
     isSelectable(asset, columnId) {
       if (asset.shared) {
         return false
       }
-      const key = asset.asset_type_id + columnId
-      if (this.isSelectableMap === undefined) this.isSelectableMap = {}
-      if (this.isSelectableMap[key] === undefined) {
-        const taskType = this.taskTypeMap.get(columnId)
-        const assetType = this.assetTypeMap.get(asset.asset_type_id)
-        let taskTypes = assetType?.task_types || []
-        if (taskTypes.length === 0) {
-          taskTypes = this.productionAssetTaskTypes.map(t => t.id)
-        }
-        this.isSelectable[key] = taskTypes.includes(taskType.id)
+      if (this.taskMap.get(asset.validations?.get(columnId))) {
+        return true
       }
-      return this.isSelectable[key]
+      const assetType = this.assetTypeMap.get(asset.asset_type_id)
+      let taskTypes = assetType?.task_types || []
+      if (taskTypes.length === 0) {
+        taskTypes = this.productionAssetTaskTypes.map(t => t.id)
+      }
+      return taskTypes.includes(columnId)
     },
 
     isSelected(indexInGroup, groupIndex, columnIndex) {
@@ -1001,6 +1044,17 @@ export default {
 
     getIndex(i, k) {
       return this.getEntityLineNumber(this.displayedAssets, i, k)
+    },
+
+    taskHref(taskId) {
+      return getTaskHref(
+        this.$router,
+        this.taskMap.get(taskId),
+        this.currentProduction,
+        this.isTVShow,
+        this.currentEpisode,
+        this.taskTypeMap
+      )
     },
 
     assetPath(assetId) {
@@ -1111,11 +1165,6 @@ export default {
 
     'displaySettings.bigThumbnails'() {
       this.updateOffsets()
-    },
-
-    currentProduction() {
-      // Map used for performance reasons, to avoid array traversals
-      this.isSelectableMap = {}
     }
   }
 }
@@ -1183,7 +1232,6 @@ td.ready-for {
 
 .description {
   min-width: 200px;
-  max-width: 200px;
   width: 200px;
 }
 
@@ -1192,6 +1240,18 @@ td.ready-for {
   max-width: 150px;
   width: 150px;
   margin-right: 1em;
+}
+
+.expand-task-types :deep(.validation-cell) {
+  width: auto;
+  min-width: 150px;
+  max-width: none;
+}
+
+.expand-task-types :deep(.task-type-name) {
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .hidden-validation-cell {
@@ -1236,10 +1296,6 @@ td.ready-for {
 
 .asset-name {
   color: inherit;
-}
-
-.info img {
-  max-width: 80vh;
 }
 
 input[type='number']::-webkit-outer-spin-button,

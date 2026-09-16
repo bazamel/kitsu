@@ -1,7 +1,7 @@
 <template>
   <div class="server-down page has-text-centered">
     <div class="illustration">
-      <img src="@/assets/illustrations/500.png" />
+      <img src="@/assets/illustrations/500.png" alt="" />
     </div>
     <h1 class="title">{{ $t('server_down.title') }}</h1>
     <p>
@@ -10,30 +10,32 @@
   </div>
 </template>
 
-<script>
-import { mapGetters } from 'vuex'
+<script setup>
+import { onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+
 import auth from '@/lib/auth'
 
-export default {
-  name: 'server-down',
-  computed: {
-    ...mapGetters(['isAuthenticated', 'user'])
-  },
-  mounted() {
-    auth.isServerLoggedIn(err => {
-      if (!err) {
-        const target = this.$store.state.route.query.redirect || '/'
-        this.$router.push(target)
-      }
-    })
+// Composables
+// --------------------------------------------------------------------------
+
+const route = useRoute()
+const router = useRouter()
+
+// Lifecycle
+// --------------------------------------------------------------------------
+
+onMounted(async () => {
+  try {
+    await auth.isServerLoggedIn()
+    router.push(route.query.redirect || '/')
+  } catch {
+    // Server still down: stay on this page.
   }
-}
+})
 </script>
 
 <style lang="scss" scoped>
-.page {
-}
-
 .illustration {
   max-width: 1000px;
   margin: auto;

@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import stringHelpers from '@/lib/string'
 
 describe('lib/string', () => {
@@ -13,10 +15,19 @@ describe('lib/string', () => {
     expect(stringHelpers.generateNextName('12')).toEqual('13')
   })
 
-  it('generateNextName with padding', () => {
+  it('generateNextName with step', () => {
     expect(stringHelpers.generateNextName('SH001', 10)).toEqual('SH010')
     expect(stringHelpers.generateNextName('SH010', 10)).toEqual('SH020')
     expect(stringHelpers.generateNextName('SH001', 2)).toEqual('SH003')
+  })
+
+  it('generateBulkShotNames', () => {
+    expect(stringHelpers.generateBulkShotNames('SH010', 3, 10)).toEqual(['SH010', 'SH020', 'SH030'])
+    expect(stringHelpers.generateBulkShotNames('SH001', 3, 1)).toEqual(['SH001', 'SH002', 'SH003'])
+    expect(stringHelpers.generateBulkShotNames('SC0010', 3, 10)).toEqual(['SC0010', 'SC0020', 'SC0030'])
+    expect(stringHelpers.generateBulkShotNames('SH090', 2, 10)).toEqual(['SH090', 'SH100'])
+    expect(stringHelpers.generateBulkShotNames('MAIN', 3, 10)).toEqual([])
+    expect(stringHelpers.generateBulkShotNames('SH010', 501, 1)).toHaveLength(500)
   })
 
   it('shortenText', () => {

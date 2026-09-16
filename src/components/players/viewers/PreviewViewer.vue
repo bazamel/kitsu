@@ -28,7 +28,6 @@
       class="video-viewer"
       :fps="fps"
       :name="name"
-      :big="isBig"
       :default-height="defaultHeight"
       :full-screen="isFullScreen"
       :is-comparing="isComparing"
@@ -55,13 +54,13 @@
 
     <picture-viewer
       ref="pictureViewer"
+      :background-color="pictureBackgroundColor"
       :big="isBig"
       :default-height="defaultHeight"
       :full-screen="isFullScreen"
       :is-comparing="isComparing"
       :light="isLight"
       :margin-bottom="marginBottom"
-      :panzoom="true"
       :preview="preview"
       @loaded="$emit('picture-loaded')"
       @panzoom-changed="onPicturePanzoomChanged"
@@ -127,15 +126,7 @@
 import { ref, computed, watch } from 'vue'
 import { DownloadIcon } from 'lucide-vue-next'
 
-import {
-  isDiffPreview,
-  isMarkdownPreview,
-  isModelPreview,
-  isMoviePreview,
-  isPdfPreview,
-  isPicturePreview,
-  isSoundPreview
-} from '@/lib/preview'
+import { useMediaKind } from '@/composables/players/mediaKind'
 
 /* eslint-disable no-unused-vars */
 import DiffViewer from '@/components/players/viewers/DiffViewer.vue'
@@ -149,6 +140,10 @@ import VideoViewer from '@/components/players/viewers/VideoViewer.vue'
 /* eslint-enable no-unused-vars */
 
 const props = defineProps({
+  pictureBackgroundColor: {
+    type: String,
+    default: '#000000'
+  },
   currentFrame: {
     type: Number,
     default: 0
@@ -268,31 +263,17 @@ const status = computed(() =>
 const isBroken = computed(() => ['broken', 'missing'].includes(status.value))
 const isProcessing = computed(() => status.value === 'processing')
 const isReady = computed(() => status.value === 'ready')
-const isDiff = computed(() => isReady.value && isDiffPreview(extension.value))
-const isMarkdown = computed(
-  () => isReady.value && isMarkdownPreview(extension.value)
-)
-const isMovie = computed(() => isReady.value && isMoviePreview(extension.value))
-const isPdf = computed(() => isReady.value && isPdfPreview(extension.value))
-const isPicture = computed(
-  () => isReady.value && isPicturePreview(extension.value)
-)
-const is3DModel = computed(
-  () => isReady.value && isModelPreview(extension.value)
-)
-const isSound = computed(() => isReady.value && isSoundPreview(extension.value))
 
-const isFile = computed(
-  () =>
-    isReady.value &&
-    !isPicture.value &&
-    !isMovie.value &&
-    !is3DModel.value &&
-    !isSound.value &&
-    !isPdf.value &&
-    !isMarkdown.value &&
-    !isDiff.value
-)
+const {
+  isDiff,
+  isFile,
+  isMarkdown,
+  isModel: is3DModel,
+  isMovie,
+  isPdf,
+  isPicture,
+  isSound
+} = useMediaKind(extension, isReady)
 
 const originalPath = computed(() => {
   if (props.preview) {
@@ -327,15 +308,21 @@ const play = () => {
 const pause = () => {
   isPlaying = false
   if (isMovie.value) videoViewer.value.pause()
-  if (isSound.value) soundViewer.value.pause()
+  // Not gated on isSound: when a preview switch triggers this pause, the
+  // computeds already describe the NEW preview, and a still-playing sound
+  // (kept mounted by v-show) would otherwise never be stopped.
+  soundViewer.value?.pause()
 }
 
+// The object viewer is only mounted for ready previews: play/pause can
+// arrive while a glb is still processing (or broken), where the parent's
+// extension-based is3DModel is true but the ref is null.
 const playModelAnimation = animationName => {
-  objectViewer.value.play(animationName)
+  objectViewer.value?.play(animationName)
 }
 
 const pauseModelAnimation = () => {
-  objectViewer.value.pause()
+  objectViewer.value?.pause()
 }
 
 const goPreviousFrame = () => {
@@ -355,7 +342,7 @@ const onPlayPauseClicked = () => {
 }
 
 const get3DAnimations = () => {
-  return objectViewer.value.getAnimations()
+  return objectViewer.value?.getAnimations() || []
 }
 
 const getNaturalDimensions = () => {

@@ -6,7 +6,14 @@
     }"
   >
     <div class="production-menu">
-      <div class="flexrow" @click="toggleProductionList">
+      <div
+        class="flexrow"
+        role="button"
+        tabindex="0"
+        @click="toggleProductionList"
+        @keydown.enter.prevent="toggleProductionList"
+        @keydown.space.prevent="toggleProductionList"
+      >
         <div class="selected-production-line flexrow-item unselectable">
           <production-name
             :production="currentProduction"
@@ -220,6 +227,16 @@ export default {
   &.topbar-menuitem-open {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .selected-production-line {
+    min-width: auto;
+
+    :deep(.avatar-name) {
+      display: none;
+    }
   }
 }
 </style>
